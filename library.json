@@ -39,10 +39,7 @@
   },
   "dependencies":
   {
-    "name": "mbed_I2CEeprom",
-    "authors": "Angel Merino",
-    "frameworks": "mbed",
-    "version": "https://github.com/voxel-dot-at/mbed_I2CEeprom.git"
+    "mbed_I2CEeprom": "https://github.com/voxel-dot-at/mbed_I2CEeprom.git"
   },
   "examples": "examples/main.cpp"
 }
