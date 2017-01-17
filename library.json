@@ -1,0 +1,42 @@
+{
+  "name":"CANopenNode",
+  "description":"Minimal CanOpen Stack implementation for MBED",
+  "keywords":"CAN,CANopen",
+  "authors":
+  {
+    "name": "Angel Merino",
+    "email": "amerino@voxel.at",
+    "maintainer": true
+  },
+  "url": "http://www.voxel.at",
+  "license": "LGPL-3.0",
+  "frameworks": ["mbed"],
+  "platforms": ["ststm32"],
+  "export": {
+    "include": [
+      "stack/",
+      "stack/mbed"
+    ],
+    "exclude": [
+      "stack/*/"
+    ]
+  },
+  "build": {
+    "flags": [
+        "-Istack/",
+        "-Istack/mbed/"
+    ],
+    "srcFilter": [
+      "+<stack/*.*>",
+      "+<stack/mbed/>",
+      "+<*.c>"
+    ]
+  },
+  "dependencies":
+  {
+    "name": "I2CEeprom",
+    "authors": "Angel Merino",
+    "frameworks": "mbed"
+  },
+  "examples": "examples/main.cpp"
+}
