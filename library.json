@@ -1,6 +1,6 @@
 {
-  "name":"CANopenNode",
-  "description":"Minimal CanOpen Stack implementation for MBED",
+  "name":"CANopenNodeMbed",
+  "description":"CanOpenNode Stack implementation for MBED",
   "keywords":"CAN,CANopen",
   "authors":
   {
@@ -9,7 +9,12 @@
     "maintainer": true
   },
   "url": "http://www.voxel.at",
-  "license": "LGPL-3.0",
+  "license": "GPL-2.0",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/voxel-dot-at/CANopenNode.git"
+  },
   "frameworks": ["mbed"],
   "platforms": ["ststm32"],
   "export": {
@@ -36,7 +41,8 @@
   {
     "name": "I2CEeprom",
     "authors": "Angel Merino",
-    "frameworks": "mbed"
+    "frameworks": "mbed",
+    "version": "https://github.com/voxel-dot-at/mbed_I2CEeprom.git"
   },
   "examples": "examples/main.cpp"
 }
