@@ -327,7 +327,7 @@ typedef enum{
  * Value can be in range from 7 to 889 bytes.
  */
     #ifndef CO_SDO_BUFFER_SIZE
-        #define CO_SDO_BUFFER_SIZE    32
+	#define CO_SDO_BUFFER_SIZE    889//32
     #endif
 
 

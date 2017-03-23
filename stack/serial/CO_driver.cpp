@@ -96,43 +96,39 @@ CO_ReturnError_t CO_CANmodule_init(
         uint16_t                CANbitRate)
 {
     uint16_t i;
+    CO_ReturnError_t ret = CO_ERROR_NO;
 
     /* verify arguments */
     if(CANmodule==NULL || rxArray==NULL || txArray==NULL){
-        return CO_ERROR_ILLEGAL_ARGUMENT;
+	ret = CO_ERROR_ILLEGAL_ARGUMENT;
     }
+    if(ret == CO_ERROR_NO) {
+	/* Configure object variables */
+	CANmodule->CANbaseAddress = CANbaseAddress;
+	CANmodule->rxArray = rxArray;
+	CANmodule->rxSize = rxSize;
+	CANmodule->txArray = txArray;
+	CANmodule->txSize = txSize;
+	CANmodule->CANnormal = false;
+	CANmodule->useCANrxFilters = false;//(rxSize <= 32U) ? true : false;/* microcontroller dependent */
+	CANmodule->bufferInhibitFlag = false;
+	CANmodule->firstCANtxMessage = true;
+	//CANmodule->error = 0;
+	CANmodule->CANtxCount = 0U;
+	CANmodule->errOld = 0U;
+	CANmodule->em = NULL;
 
-    /* Configure object variables */
-    CANmodule->CANbaseAddress = CANbaseAddress;
-    CANmodule->rxArray = rxArray;
-    CANmodule->rxSize = rxSize;
-    CANmodule->txArray = txArray;
-    CANmodule->txSize = txSize;
-    CANmodule->CANnormal = false;
-    CANmodule->useCANrxFilters = false;//(rxSize <= 32U) ? true : false;/* microcontroller dependent */
-    CANmodule->bufferInhibitFlag = false;
-    CANmodule->firstCANtxMessage = true;
-    CANmodule->CANtxCount = 0U;
-    CANmodule->errOld = 0U;
-    CANmodule->em = NULL;
+	_CANmodule = CANmodule;
 
-    _CANmodule = CANmodule;
+	for(i=0U; i<rxSize; i++){
+	    rxArray[i].ident = 0U;
+	    rxArray[i].pFunct = NULL;
+	}
+	for(i=0U; i<txSize; i++){
+	    txArray[i].bufferFull = false;
+	}
 
-    for(i=0U; i<rxSize; i++){
-        rxArray[i].ident = 0U;
-        rxArray[i].pFunct = NULL;
     }
-    for(i=0U; i<txSize; i++){
-        txArray[i].bufferFull = false;
-    }
-
-    //can = static_cast<mbed::CAN*>(CANmodule->CANbaseAddress);
-    /*
-    _can = (mbed::CAN*)CANmodule->CANbaseAddress;
-    _can->attach(&CO_CANinterrupt_Rx, CAN::RxIrq);
-    _can->attach(&CO_CANinterrupt_busErr, CAN::BeIrq);
-    _can->attach(&CO_CANinterrupt_err, CAN::EwIrq);
-    */
 
     /* Configure CAN module registers */
 
@@ -141,7 +137,7 @@ CO_ReturnError_t CO_CANmodule_init(
 
 
     /* Configure CAN module hardware filters */
-    if(CANmodule->useCANrxFilters){
+    if(ret == CO_ERROR_NO && CANmodule->useCANrxFilters){
         /* CAN module filters are used, they will be configured with */
         /* CO_CANrxBufferInit() functions, called by separate CANopen */
         /* init functions. */
@@ -266,33 +262,19 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer){
 	    msg += " " + boost::lexical_cast<std::string>((int)buffer->data[i]);
 	}
 	//msg += "\r\n";
-	std::cout << "SEND:-->" << msg << std::endl;
-	msg += "\r";
+
+	//std::cout << "SEND:-->" << msg;
+	msg += "\r\n";
 	//SerialPort *_port = (SerialPort*)CANmodule->CANbaseAddress;
-	//std::cout << "_port: " << _port << std::endl;
-	if (_port->write_some(msg.c_str(),msg.size()) != msg.size())
+	if (!_port || _port->write_some(msg.c_str(),msg.size()) != msg.size()) {
 	    std::cout << "SEND CO_ERROR." << std::endl;
 	    err =  CO_ERROR_TX_OVERFLOW; // TODO
-
+	}
+	//std::cout << " -- Done." << std::endl;
         #ifdef CO_DEBUG
-          printf("Send:    [ ID: %11x", canMsg.id);
-          printf(" Length: %d", canMsg.len);
-          printf(" Data: %2x", canMsg.data[0]);
-          printf(" %2x", canMsg.data[1]);
-          printf(" %2x", canMsg.data[2]);
-          printf(" %2x", canMsg.data[3]);
-          printf(" %2x", canMsg.data[4]);
-          printf(" %2x", canMsg.data[5]);
-          printf(" %2x", canMsg.data[6]);
-          printf(" %2x", canMsg.data[7]);
-          printf(" Type: %d", canMsg.type);           // 0 = data, 1 = remote
-          printf(" Format: %d ]\r\n", canMsg.format);
-          /*printf("%u %u %u %u %u %u %u %u %u %u %u %u\r\n",
-            canMsg.format,canMsg.type,canMsg.id,canMsg.len,
-            canMsg.data[0],canMsg.data[1],canMsg.data[2],canMsg.data[3],
-            canMsg.data[4],canMsg.data[5],canMsg.data[6],canMsg.data[7]);*/
-          write_activity = !write_activity;             //Blink!
+	    std::cout << "SEND:-->" << msg << std::endl;
         #endif
+	std::cout << "SEND:-->" << msg;
 
     }
     /* if no buffer is free, message will be sent by interrupt */
@@ -347,6 +329,7 @@ void CO_CANverifyErrors(CO_CANmodule_t *CANmodule){
     uint16_t rxErrors, txErrors, overflow;
     CO_EM_t* em = (CO_EM_t*)CANmodule->em;
     uint32_t err;
+    rxErrors = txErrors = overflow = 0;
 
     /* get error counters from module. Id possible, function may use different way to
      * determine errors. */
@@ -357,13 +340,13 @@ void CO_CANverifyErrors(CO_CANmodule_t *CANmodule){
     //rxErrors = _can->rderror();
     //txErrors = _can->tderror();
     //overflow = rxErrors + rxErrors;
-    //printf("rxErrors %d\n", rxErrors);
-    //printf("txErrors %d\n", txErrors);
-    //printf("overflow %d\n", overflow);*/
-    //printf("em->errorStatusBits[3]: %d\n", em->errorStatusBits[3]);
+    /*printf("rxErrors %d\t", rxErrors);
+    printf("txErrors %d\t", txErrors);
+    printf("overflow %d\t", overflow);
+    printf("em->errorStatusBits[3]: %d\t", em->errorStatusBits[3]);*/
 
     err = ((uint32_t)txErrors << 16) | ((uint32_t)rxErrors << 8) | overflow;
-    //printf("err %d\n", err);
+    //printf("err: %d\n", err);
 
     if(CANmodule->errOld != err){
         CANmodule->errOld = err;
@@ -537,10 +520,10 @@ void CO_CANinterrupt_Rx(const CO_CANrxMsg_t *rcvMsg)
           buffer++;
       }
   }
-  printf("msgMatched: %d\n", msgMatched);
+  //printf("msgMatched: %d\n", msgMatched);
   /* Call specific function, which will process the message */
   if(msgMatched && (buffer != NULL) && (buffer->pFunct != NULL)){
-      printf("msgMatched!\n");
+      //printf("msgMatched!\n");
       buffer->pFunct(buffer->object, rcvMsg);
   }
 

@@ -52,6 +52,8 @@
 #include "CO_PDO.h"
 #include <string.h>
 
+//#include "CO_OD.h"
+
 /*
  * Read received message from CAN module.
  *
@@ -63,7 +65,7 @@
  */
 static void CO_PDO_receive(void *object, const CO_CANrxMsg_t *msg){
     CO_RPDO_t *RPDO;
-
+    //printf("CO_PDO_receive msg:%d\n",msg->ident);
     RPDO = (CO_RPDO_t*)object;   /* this is the correct pointer type of the first argument */
 
     if( (RPDO->valid) &&
@@ -225,12 +227,14 @@ static uint32_t CO_PDOfindMap(
     subIndex = (uint8_t)(map>>8);
     dataLen = (uint8_t) map;   /* data length in bits */
 
+    //printf("CO_PDOfindMap CO_SDO_AB_NO_MAP\n");
     /* data length must be byte aligned */
     if(dataLen&0x07) return CO_SDO_AB_NO_MAP;   /* Object cannot be mapped to the PDO. */
 
     dataLen >>= 3;    /* new data length is in bytes */
     *pLength += dataLen;
 
+    //printf("CO_PDOfindMap CO_SDO_AB_MAP_LEN\n");
     /* total PDO length can not be more than 8 bytes */
     if(*pLength > 8) return CO_SDO_AB_MAP_LEN;  /* The number and length of the objects to be mapped would exceed PDO length. */
 
@@ -244,6 +248,7 @@ static uint32_t CO_PDOfindMap(
         else if(index==2 || index==5) dummySize = 1;
         else if(index==3 || index==6) dummySize = 2;
 
+	//printf("CO_PDOfindMap CO_SDO_AB_NO_MAP\n");
         /* is size of variable big enough for map */
         if(dummySize < dataLen) return CO_SDO_AB_NO_MAP;   /* Object cannot be mapped to the PDO. */
 
@@ -257,16 +262,20 @@ static uint32_t CO_PDOfindMap(
     /* find object in Object Dictionary */
     entryNo = CO_OD_find(SDO, index);
 
+    //printf("CO_PDOfindMap CO_SDO_AB_NOT_EXIST\n");
     /* Does object exist in OD? */
     if(entryNo == 0xFFFF || subIndex > SDO->OD[entryNo].maxSubIndex)
         return CO_SDO_AB_NOT_EXIST;   /* Object does not exist in the object dictionary. */
 
     attr = CO_OD_getAttribute(SDO, entryNo, subIndex);
+    //printf("CO_PDOfindMap CO_ODA_RPDO_MAPABLE\n");
     /* Is object Mappable for RPDO? */
     if(R_T==0 && !((attr&CO_ODA_RPDO_MAPABLE) && (attr&CO_ODA_WRITEABLE))) return CO_SDO_AB_NO_MAP;   /* Object cannot be mapped to the PDO. */
+    //printf("CO_PDOfindMap CO_ODA_TPDO_MAPABLE\n");
     /* Is object Mappable for TPDO? */
     if(R_T!=0 && !((attr&CO_ODA_TPDO_MAPABLE) && (attr&CO_ODA_READABLE))) return CO_SDO_AB_NO_MAP;   /* Object cannot be mapped to the PDO. */
 
+    //printf("CO_PDOfindMap objectLen\n");
     /* is size of variable big enough for map */
     objectLen = CO_OD_getLength(SDO, entryNo, subIndex);
     if(objectLen < dataLen) return CO_SDO_AB_NO_MAP;   /* Object cannot be mapped to the PDO. */
@@ -904,10 +913,11 @@ int16_t CO_TPDOsend(CO_TPDO_t *TPDO){
 //#define RPDO_CALLS_EXTENSION
 /******************************************************************************/
 void CO_RPDO_process(CO_RPDO_t *RPDO, bool_t syncWas){
-
+    //printf("CO_RPDO_process!\n");
     if(RPDO->valid && (*RPDO->operatingState == CO_NMT_OPERATIONAL) &&
       ((RPDO->synchronous && syncWas) || !RPDO->synchronous))
     {
+	//printf("  VALID!\n");
         uint8_t bufNo = 0;
 
         /* Determine, which of the two rx buffers, contains relevant message. */
@@ -919,17 +929,32 @@ void CO_RPDO_process(CO_RPDO_t *RPDO, bool_t syncWas){
             int16_t i;
             uint8_t* pPDOdataByte;
             uint8_t** ppODdataByte;
-
+	    //printf("RPDO->nodeId %d\n",RPDO->nodeId);
+	    //printf("RPDO->CANdevRxIdx %d\n",RPDO->CANdevRxIdx);
+	    //printf("RPDO->dataLength %d\n",RPDO->dataLength);
             i = RPDO->dataLength;
             pPDOdataByte = &RPDO->CANrxData[bufNo][0];
             ppODdataByte = &RPDO->mapPointer[0];
 
             /* Copy data to Object dictionary. If between the copy operation CANrxNew
              * is set to true by receive thread, then copy the latest data again. */
+	    /*printf("RPDO->CANrxData[bufNo][x] %d ",RPDO->CANrxData[bufNo][0]);
+	    printf("%d ",RPDO->CANrxData[bufNo][1]);
+	    printf("%d ",RPDO->CANrxData[bufNo][2]);
+	    printf("%d ",RPDO->CANrxData[bufNo][3]);
+	    printf("%d ",RPDO->CANrxData[bufNo][4]);
+	    printf("%d ",RPDO->CANrxData[bufNo][5]);
+	    printf("%d ",RPDO->CANrxData[bufNo][6]);
+	    printf("%d\n",RPDO->CANrxData[bufNo][7]);*/
+
+	    //printf("**(ppODdataByte) %d\n",ppODdataByte);
             RPDO->CANrxNew[bufNo] = false;
             for(; i>0; i--) {
-                **(ppODdataByte++) = *(pPDOdataByte++);
+		//printf("*(pPDOdataByte) %d\n",*(pPDOdataByte));
+		**(ppODdataByte++) = *(pPDOdataByte++);
+		//printf("**(ppODdataByte) %d\n",**(ppODdataByte));
             }
+	    //printf("OD_distanceCalibrated: %f\n",OD_distanceCalibrated);
 
 #ifdef RPDO_CALLS_EXTENSION
             if(RPDO->SDO->ODExtensions){
