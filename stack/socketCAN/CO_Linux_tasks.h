@@ -27,7 +27,6 @@
 #ifndef CO_LINUX_TASKS_H
 #define CO_LINUX_TASKS_H
 
-
 /**
  * Initialize mainline task.
  *
