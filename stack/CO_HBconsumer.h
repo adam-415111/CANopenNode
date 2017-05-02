@@ -141,5 +141,10 @@ void CO_HBconsumer_process(
         uint16_t                timeDifference_ms);
 
 
+void CO_HBcons_monitoredNodeConfig(
+        CO_HBconsumer_t        *HBcons,
+        uint8_t                 idx,
+        uint32_t                HBconsTime);
+
 /** @} */
 #endif

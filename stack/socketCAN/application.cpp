@@ -372,12 +372,12 @@ void processTask_thread(void) {
         timer1msCopy = CO_timer1ms;
         timer1msDiff = timer1msCopy - timer1msPrevious;
         timer1msPrevious = timer1msCopy;
-        reset_NMT = CO_process(CO, 50, NULL);
+        reset_NMT = CO_process(CO, timer1msDiff, &timerNext_ms);
         //printf("timerNext_ms %d\n", timerNext_ms);
         /*#ifdef USE_STORAGE
     CO_EE_process(&CO_EEO);
       #endif*/
-        boost::this_thread::sleep(boost::posix_time::milliseconds(50));
+        boost::this_thread::sleep(boost::posix_time::milliseconds(timerNext_ms));
         diff = boost::posix_time::microsec_clock::local_time() - tick;
         //std::cout << "processTask_thread: " << diff.total_milliseconds() << " milliseconds" << std::endl;
     }
@@ -443,7 +443,7 @@ void tmrTask_main(void) {
             if(errno != EINTR) {
                 CO_error(0x11100000L + errno);
             }
-        }             else if(taskMain_process(ev.data.fd, &reset_NMT, CO_timer1ms)) {
+        } else if(taskMain_process(ev.data.fd, &reset_NMT, CO_timer1ms)) {
             uint16_t timer1msDiff;
             static uint16_t tmr1msPrev = 0;
 
@@ -467,11 +467,15 @@ void tmrTask_main(void) {
     BOOST_LOG_TRIVIAL(debug) << "tmrTask_main done!";
 }
 
+boost::posix_time::ptime count = boost::posix_time::microsec_clock::local_time();
+
+
 /* Realtime thread for CAN receive and taskTmr ********************************/
 static void* rt_thread(void* arg) {
 
     /* Endless loop */
     while(CO_endProgram == 0) {
+        //count = boost::posix_time::microsec_clock::local_time();
         int ready;
         struct epoll_event ev;
 
@@ -510,12 +514,12 @@ static void* rt_thread(void* arg) {
             /* No file descriptor was processed. */
             CO_error(0x12200000L);
         }
+        //boost::posix_time::time_duration diff = boost::posix_time::microsec_clock::local_time() - count;
+        //std::cout << "The time taken was " << diff.total_milliseconds() << " milliseconds" << std::endl;
     }
 
     return NULL;
 }
-
-boost::posix_time::ptime count = boost::posix_time::microsec_clock::local_time();
 
 /*
 void on_receive_can(const std::string &data) {
