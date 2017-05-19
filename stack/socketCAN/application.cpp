@@ -49,7 +49,8 @@
 #include <boost/lexical_cast.hpp>
 #include <boost/thread.hpp>
 //#include <easylogging++.h>
-#include <boost/log/trivial.hpp>
+//#include <boost/log/trivial.hpp>
+#include <data/logger.hpp>
 #include <net/if.h>
 #include <sys/epoll.h>
 #include <pthread.h>
@@ -89,15 +90,15 @@ static CO_time_t            CO_time;            /* Object for current time */
 
 /* Signal handler */
 volatile sig_atomic_t CO_endProgram = 0;
-static void sigHandler(int sig) {
+/*static void sigHandler(int sig) {
     CO_endProgram = 1;
     CO_exit();
     exit(EXIT_SUCCESS);
-}
+}*/
 
 /* Helper functions ***********************************************************/
 void CO_exit() {
-    BOOST_LOG_TRIVIAL(debug) << "CO_Exit Called";
+    DEBUG << "CO_Exit Called";
 
     reset_NMT = CO_RESET_QUIT;
     CO_endProgram = 1;
@@ -114,15 +115,18 @@ void CO_exit() {
     delete tmrThread;
     tmrThread = NULL;
 
-
     if(pthread_join(rt_thread_id, NULL) != 0) {
         CO_errExit("Program end - pthread_join failed");
     }
-    BOOST_LOG_TRIVIAL(debug) << "rt_thread_id done!";
+    DEBUG << "rt_thread_id done!";
 
     /* delete objects from memory */
     CANrx_taskTmr_close();
     taskMain_close();
+
+
+    //CANrx_taskTmr_close();
+    //taskMain_close();
 
     /*if (processThread) {
         processThread->join();
@@ -136,11 +140,14 @@ void CO_exit() {
     boost::this_thread::sleep(boost::posix_time::milliseconds(200));
 
     CO_delete( CANdevice0Index );
-    BOOST_LOG_TRIVIAL(debug) << "CanOpen closed";
+    DEBUG << "CanOpen closed";
 }
 
+
+
 void CO_errExit(char* msg) {
-    perror(msg);
+    ERROR << msg;
+    //perror(msg);
     //CO_exit();
     //exit(EXIT_FAILURE);
 }
@@ -155,13 +162,13 @@ void CO_error(const uint32_t info) {
 int startCO(std::string CANdevice) {
 
     if (CO != NULL) {
-        BOOST_LOG_TRIVIAL(debug) << "Reseting CO...";
+        DEBUG << "Reseting CO...";
         CO_exit();
     }
 
     CANdevice0Index = if_nametoindex(CANdevice.c_str());
     if(CANdevice0Index == 0) {
-        BOOST_LOG_TRIVIAL(error) << "Can't find CAN device " << CANdevice;
+        ERROR << "Can't find CAN device " << CANdevice;
         return 11;
         /*char s[120];
         snprintf(s, 120, "Can't find CAN device \"%s\"", CANdevice);
@@ -219,7 +226,7 @@ int startCO(std::string CANdevice) {
     //printf(", count=%u ...\n", ++OD_powerOnCounter);
 
     if (communicationStart() < 0) {
-        BOOST_LOG_TRIVIAL(error) << "Communication failed";
+        ERROR << "Communication failed";
         //CO_exit();
         return 10;
         //CO_errExit("Serial communication failed");
@@ -249,7 +256,7 @@ int startCO(std::string CANdevice) {
     /* Configure epoll for mainline */
     mainline_epoll_fd = epoll_create(4);
     if(mainline_epoll_fd == -1) {
-        BOOST_LOG_TRIVIAL(error) << "Program init - epoll_create mainline failed";
+        ERROR << "Program init - epoll_create mainline failed";
         return 12;
         //CO_errExit("Program init - epoll_create mainline failed");
     }
@@ -259,7 +266,7 @@ int startCO(std::string CANdevice) {
     /* Configure epoll for rt_thread */
     rt_thread_epoll_fd = epoll_create(2);
     if(rt_thread_epoll_fd == -1) {
-        BOOST_LOG_TRIVIAL(error) << "Program init - epoll_create rt_thread failed";
+        ERROR << "Program init - epoll_create rt_thread failed";
         return 12;
         //CO_errExit("Program init - epoll_create rt_thread failed");
     }
@@ -271,7 +278,7 @@ int startCO(std::string CANdevice) {
 
     /* Create rt_thread */
     if(pthread_create(&rt_thread_id, NULL, rt_thread, NULL) != 0) {
-        BOOST_LOG_TRIVIAL(error) << "Program init - rt_thread creation failed";
+        ERROR << "Program init - rt_thread creation failed";
         return 12;
         //CO_errExit("Program init - rt_thread creation failed");
     }
@@ -282,7 +289,7 @@ int startCO(std::string CANdevice) {
 
         param.sched_priority = rtPriority;
         if(pthread_setschedparam(rt_thread_id, SCHED_FIFO, &param) != 0) {
-            BOOST_LOG_TRIVIAL(error) << "Program init - rt_thread set scheduler failed";
+            ERROR << "Program init - rt_thread set scheduler failed";
             return 12;
             //CO_errExit("Program init - rt_thread set scheduler failed");
         }
@@ -302,7 +309,7 @@ int startCO(std::string CANdevice) {
     //CO_OD_storage_autoSave(&odStorAuto, CO_timer1ms, 60000);
 #endif
 
-    BOOST_LOG_TRIVIAL(debug) << "...done";
+    DEBUG << "...done";
     return 0;
 }
 
@@ -312,7 +319,7 @@ int communicationStart() {
 
     err = CO_init( CANdevice0Index, OD_CANNodeID, OD_CANBitRate);
     if(err != CO_ERROR_NO) {
-        BOOST_LOG_TRIVIAL(error) << "Failed CO_init: " << err;
+        ERROR << "Failed CO_init: " << err;
         //TODO report to whom
         //CO_errorReport(CO->em, CO_EM_MEMORY_ALLOCATION_ERROR, CO_EMC_SOFTWARE_INTERNAL, err);
         return -1;
@@ -321,7 +328,7 @@ int communicationStart() {
 
     // start CAN
     //CO_CANsetNormalMode(CO->CANmodule[0]);
-    BOOST_LOG_TRIVIAL(debug) << "...done.";
+    DEBUG << "...done.";
     return 0;
 }
 
@@ -381,7 +388,7 @@ void processTask_thread(void) {
         diff = boost::posix_time::microsec_clock::local_time() - tick;
         //std::cout << "processTask_thread: " << diff.total_milliseconds() << " milliseconds" << std::endl;
     }
-    BOOST_LOG_TRIVIAL(debug) << "processTask_thread done!";
+    DEBUG << "processTask_thread done!";
 }
 
 /*******************************************************************************/
@@ -410,7 +417,7 @@ void tmrTask_thread(void) {
             CO_process_TPDO(CO, syncWas, TMR_TASK_INTERVAL);
 
             if (OD_errorRegister > 0) {
-                BOOST_LOG_TRIVIAL(debug) << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
+                DEBUG << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
                 //InterEmergSignal();
             }
             //if ()
@@ -425,7 +432,7 @@ void tmrTask_thread(void) {
         //diff = boost::posix_time::microsec_clock::local_time() - tick;
         //std::cout << "The time taken was " << diff.total_milliseconds() << " milliseconds" << std::endl;
     }
-    BOOST_LOG_TRIVIAL(debug) << "tmrTask_thread done!";
+    DEBUG << "tmrTask_thread done!";
 }
 
 void tmrTask_main(void) {
@@ -464,7 +471,7 @@ void tmrTask_main(void) {
             CO_error(0x11200000L);
         }
     }
-    BOOST_LOG_TRIVIAL(debug) << "tmrTask_main done!";
+    DEBUG << "tmrTask_main done!";
 }
 
 boost::posix_time::ptime count = boost::posix_time::microsec_clock::local_time();
