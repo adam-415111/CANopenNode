@@ -291,14 +291,14 @@ bool_t CANrx_taskTmr_process(int fd) {
             /* Process Sync and read inputs */
             syncWas = CO_process_SYNC_RPDO(CO, taskRT.intervalus);
 
+            /* Write outputs */
+            CO_process_TPDO(CO, syncWas, taskRT.intervalus);
+
             /* Further I/O or nonblocking application code may go here. */
-            if (OD_errorRegister > 0) {
+            if (OD_errorRegister) {
                 //LOG(DEBUG) << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
                 InterEmergSignal();
             }
-
-            /* Write outputs */
-            CO_process_TPDO(CO, syncWas, taskRT.intervalus);
 
         }
 
