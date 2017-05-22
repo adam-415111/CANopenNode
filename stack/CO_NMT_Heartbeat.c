@@ -220,7 +220,8 @@ CO_NMT_reset_cmd_t CO_NMT_process(
     uint8_t currentOperatingState = NMT->operatingState;
 
     NMT->HBproducerTimer += timeDifference_ms;
-
+    //printf ("NMT->HBproducerTimer: %d\t",NMT->HBproducerTimer);
+    //printf ("HBtime: %d\n",HBtime);
     /* Heartbeat producer message & Bootup message */
     if((HBtime != 0 && NMT->HBproducerTimer >= HBtime) || NMT->operatingState == CO_NMT_INITIALIZING){
 
