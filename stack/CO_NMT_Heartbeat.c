@@ -216,7 +216,6 @@ CO_NMT_reset_cmd_t CO_NMT_process(
         uint16_t               *timerNext_ms)
 {
     uint8_t CANpassive;
-
     uint8_t currentOperatingState = NMT->operatingState;
 
     NMT->HBproducerTimer += timeDifference_ms;
@@ -356,4 +355,3 @@ CO_NMT_internalState_t CO_NMT_getInternalState(
     }
     return CO_NMT_INITIALIZING;
 }
-
