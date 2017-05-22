@@ -46,12 +46,11 @@
 
 
 #include "CANopen.h"
-
+#include <stdio.h>
 
 /* If defined, global variables will be used, otherwise CANopen objects will
    be generated with calloc(). */
 /* #define CO_USE_GLOBALS */
-
 
 #ifndef CO_USE_GLOBALS
     #include <stdlib.h> /*  for malloc, free */
@@ -217,7 +216,6 @@ CO_ReturnError_t CO_init(
     }
     #endif
 
-
     /* Initialize CANopen object */
 #ifdef CO_USE_GLOBALS
     CO = &COO;
@@ -351,7 +349,6 @@ CO_ReturnError_t CO_init(
     /* Verify CANopen Node-ID */
     if(nodeId<1 || nodeId>127) nodeId = 0x10;
 
-
     err = CO_CANmodule_init(
             CO->CANmodule[0],
             CANbaseAddress,
@@ -360,7 +357,7 @@ CO_ReturnError_t CO_init(
             CO_CANmodule_txArray0,
             CO_TXCAN_NO_MSGS,
             bitRate);
-
+    //printf("CO_CANmodule_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
     for (i=0; i<CO_NO_SDO_SERVER; i++)
@@ -391,7 +388,7 @@ CO_ReturnError_t CO_init(
                 CO->CANmodule[0],
                 CO_TXCAN_SDO_SRV+i);
     }
-
+    //printf("CO_SDO_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
 
@@ -407,7 +404,7 @@ CO_ReturnError_t CO_init(
             CO->CANmodule[0],
             CO_TXCAN_EMERG,
             CO_CAN_ID_EMERGENCY + nodeId);
-
+    //printf("CO_EM_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
 
@@ -422,7 +419,7 @@ CO_ReturnError_t CO_init(
             CO->CANmodule[0],
             CO_TXCAN_HB,
             CO_CAN_ID_HEARTBEAT + nodeId);
-
+    //printf("CO_NMT_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
 
@@ -434,6 +431,7 @@ CO_ReturnError_t CO_init(
             0,                /* rtr */
             2,                /* number of data bytes */
             0);               /* synchronous message flag bit */
+    //printf("CO_CANtxBufferInit: %d\n", NMTM_txBuff);
 #endif
 
 
@@ -449,7 +447,7 @@ CO_ReturnError_t CO_init(
             CO_RXCAN_SYNC,
             CO->CANmodule[0],
             CO_TXCAN_SYNC);
-
+    //printf("CO_SYNC_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
 
@@ -472,7 +470,7 @@ CO_ReturnError_t CO_init(
                 OD_H1600_RXPDO_1_MAPPING+i,
                 CANdevRx,
                 CANdevRxIdx);
-
+	//printf("CO_RPDO_init: %d\n", err);
         if(err){CO_delete(CANbaseAddress); return err;}
     }
 
@@ -492,7 +490,7 @@ CO_ReturnError_t CO_init(
                 OD_H1A00_TXPDO_1_MAPPING+i,
                 CO->CANmodule[0],
                 CO_TXCAN_TPDO+i);
-
+	//printf("CO_TPDO_init: %d\n", err);
         if(err){CO_delete(CANbaseAddress); return err;}
     }
 
@@ -506,7 +504,7 @@ CO_ReturnError_t CO_init(
             CO_NO_HB_CONS,
             CO->CANmodule[0],
             CO_RXCAN_CONS_HB);
-
+    //printf("CO_HBconsumer_init: %d\r\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
 
@@ -519,7 +517,7 @@ CO_ReturnError_t CO_init(
             CO_RXCAN_SDO_CLI,
             CO->CANmodule[0],
             CO_TXCAN_SDO_CLI);
-
+    //printf("CO_SDOclient_init: %d\r\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 #endif
 
@@ -620,7 +618,7 @@ CO_NMT_reset_cmd_t CO_process(
         }
     }
 
-
+    //printf("CO_SDO_process\n");
     for(i=0; i<CO_NO_SDO_SERVER; i++){
         CO_SDO_process(
                 CO->SDO[i],
@@ -629,14 +627,14 @@ CO_NMT_reset_cmd_t CO_process(
                 1000,
                 timerNext_ms);
     }
-
+    //printf("CO_EM_process\n");
     CO_EM_process(
             CO->emPr,
             NMTisPreOrOperational,
             timeDifference_ms * 10,
             OD_inhibitTimeEMCY);
 
-
+    //printf("CO_NMT_process\n");
     reset = CO_NMT_process(
             CO->NMT,
             timeDifference_ms,
@@ -646,12 +644,12 @@ CO_NMT_reset_cmd_t CO_process(
             OD_errorBehavior,
             timerNext_ms);
 
-
+    //printf("CO_HBconsumer_process\n");
     CO_HBconsumer_process(
             CO->HBcons,
             NMTisPreOrOperational,
             timeDifference_ms);
-
+    //printf("reset: %d\n", reset);
     return reset;
 }
 
