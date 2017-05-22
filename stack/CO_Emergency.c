@@ -280,6 +280,7 @@ void CO_EM_process(
 
 /******************************************************************************/
 void CO_errorReport(CO_EM_t *em, const uint8_t errorBit, const uint16_t errorCode, const uint32_t infoCode){
+
     uint8_t index = errorBit >> 3;
     uint8_t bitmask = 1 << (errorBit & 0x7);
     uint8_t *errorStatusBits = 0;
