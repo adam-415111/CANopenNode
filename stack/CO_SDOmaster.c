@@ -836,6 +836,8 @@ CO_SDOclient_return_t CO_SDOclientUpload(
     /* clear abort code */
     *pSDOabortCode = CO_SDO_AB_NONE;
 
+    //printf("SDO_C->SDOClientPar->nodeIDOfTheSDOServer: %d\n", SDO_C->SDOClientPar->nodeIDOfTheSDOServer);
+    //printf("SDO_C->SDO->nodeId: %d\n", SDO_C->SDO->nodeId);
     /* if nodeIDOfTheSDOServer == node-ID of this node, then exchange data with this node */
     if(SDO_C->SDO && SDO_C->SDOClientPar->nodeIDOfTheSDOServer == SDO_C->SDO->nodeId){
         SDO_C->state = SDO_STATE_NOTDEFINED;
@@ -1131,6 +1133,7 @@ CO_SDOclient_return_t CO_SDOclientUpload(
     }
 
     CO_SDOTxBufferClear(SDO_C);
+    //printf("SDO_C->state: %d\n", SDO_C->state);
     switch (SDO_C->state){
         case SDO_STATE_ABORT:{
             SDO_C->state = SDO_STATE_NOTDEFINED;

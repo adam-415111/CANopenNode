@@ -48,210 +48,369 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 
+#include <easylogging++.h>
+
+#define CO_SDO_BUFFER_SIZE    889
+CO_NMT_reset_cmd_t reset_NMT = CO_RESET_NOT;
 
 #ifdef USE_STORAGE
-    static CO_OD_storage_t      odStor; /* Object Dictionary storage object for CO_OD_ROM */
-    static CO_OD_storage_t      odStorAuto;         /* Object Dictionary storage object for CO_OD_EEPROM */
-    static char                *odStorFile_rom    = "od_storage";       /* Name of the file */
-    static char                *odStorFile_eeprom = "od_storage_auto";  /* Name of the file */
-    CO_ReturnError_t odStorStatus_rom, odStorStatus_eeprom;
-    //CO_EE_t                     CO_EEO;         /* Eeprom object */
+static CO_OD_storage_t      odStor; /* Object Dictionary storage object for CO_OD_ROM */
+static CO_OD_storage_t      odStorAuto;         /* Object Dictionary storage object for CO_OD_EEPROM */
+static char                *odStorFile_rom    = "od_storage";       /* Name of the file */
+static char                *odStorFile_eeprom = "od_storage_auto";  /* Name of the file */
+CO_ReturnError_t odStorStatus_rom = CO_ERROR_NO, odStorStatus_eeprom = CO_ERROR_NO;
+//CO_EE_t                     CO_EEO;         /* Eeprom object */
 #endif
 
-#define TMR_TASK_INTERVAL   (1000)          /* Interval of tmrTask thread in microseconds */
+#define TMR_TASK_INTERVAL   (50000)          /* Interval of tmrTask thread in microseconds */
 #define INCREMENT_1MS(var)  (var++)         /* Increment 1ms variable in tmrTask */
 volatile uint16_t   CO_timer1ms = 0U;       /* variable increments each millisecond */
-boost::thread *processThread, *tmrThread;
+boost::thread *processThread = NULL, *tmrThread = NULL;
 
-extern SerialPort *_port = NULL;
+extern boost::shared_ptr<SerialPort> _port = NULL;
+void (*InterEmergSignal)(void) = NULL;
+
+/* Helper functions ***********************************************************/
+void CO_exit() {
+    LOG(DEBUG) << "CO_Exit Called";
+
+    reset_NMT = CO_RESET_QUIT;
+    if (tmrThread) {
+        tmrThread->join();
+    }
+    delete tmrThread;
+    tmrThread = NULL;
+
+    if (processThread) {
+        processThread->join();
+    }
+    delete processThread;
+    processThread = NULL;
+
+    if (_port != NULL && _port.get() != NULL) {
+        _port->stop();
+    }
+    boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+
+    CO_delete( *((int32_t*)_port.get()) );
+    LOG(INFO) << "CanOpen and serial closed";
+}
+
+void CO_errExit(char* msg) {
+    perror(msg);
+    CO_exit();
+    exit(EXIT_FAILURE);
+}
+
+/* send CANopen generic emergency message */
+void CO_error(const uint32_t info) {
+    CO_errorReport(CO->em, CO_EM_GENERIC_SOFTWARE_ERROR, CO_EMC_SOFTWARE_INTERNAL, info);
+    fprintf(stderr, "canopend generic error: 0x%X\n", info);
+}
 
 /* Signal handler */
 volatile sig_atomic_t CO_endProgram = 0;
-/*static void sigHandler(int sig) {
+static void sigHandler(int sig) {
     CO_endProgram = 1;
-}*/
-
-/* Helper functions ***********************************************************/
-/*void CO_errExit(char* msg) {
-    perror(msg);
-    exit(EXIT_FAILURE);
-}*/
-
-/* send CANopen generic emergency message */
-/*void CO_error(const uint32_t info) {
-    CO_errorReport(CO->em, CO_EM_GENERIC_SOFTWARE_ERROR, CO_EMC_SOFTWARE_INTERNAL, info);
-    fprintf(stderr, "canopend generic error: 0x%X\n", info);
-}*/
-
+    CO_exit();
+    exit(EXIT_SUCCESS);
+}
 
 /*******************************************************************************/
-void programStart(SerialPort *serial) {
-    //bool firstRun = true;
+int startCO(SerialPort *serial) {
 
+    if (CO != NULL) {
+	LOG(INFO) << "Reseting CO...";
+	CO_exit();
+    }
+    reset_NMT = CO_RESET_NOT;
 #ifdef USE_STORAGE
-    odStorFile_rom = "rom.txt";
-    odStorFile_eeprom = "eeprom.txt";
+    odStorFile_rom = "rom.bin";
+    odStorFile_eeprom = "eeprom.bin";
 
-    /* Verify, if OD structures have proper alignment of initial values */
+    LOG(DEBUG) << "Starting CANopen device with Node ID: " << (int)OD_CANNodeID << "(0x" << std::hex << (int)CO_OD_ROM.CANNodeID << ")";
+    //el::Loggers::getLogger("default")->debug("Starting CANopen device with Node ID %d(0x%02X)...\n", OD_CANNodeID, CO_OD_ROM.CANNodeID);
+
+    // Verify, if OD structures have proper alignment of initial values
     if(CO_OD_RAM.FirstWord != CO_OD_RAM.LastWord) {
-	fprintf(stderr, "Program init - %s - Error in CO_OD_RAM.\n", odStorFile_rom);
+	LOG(ERROR) << "Error in CO_OD_RAM: " << odStorFile_rom;
+	//fprintf(stderr, "Program init - %s - Error in CO_OD_RAM.\n", odStorFile_rom);
 	exit(EXIT_FAILURE);
     }
+
     if(CO_OD_EEPROM.FirstWord != CO_OD_EEPROM.LastWord) {
-	fprintf(stderr, "Program init - %s - Error in CO_OD_EEPROM.\n", odStorFile_eeprom);
+	LOG(ERROR) << "Error in CO_OD_EEPROM: " << odStorFile_eeprom;
+	//fprintf(stderr, "Program init - %s - Error in CO_OD_EEPROM.\n", odStorFile_eeprom);
 	exit(EXIT_FAILURE);
     }
+
     if(CO_OD_ROM.FirstWord != CO_OD_ROM.LastWord) {
-	fprintf(stderr, "Program init - %s - Error in CO_OD_ROM.\n", odStorFile_rom);
+	LOG(ERROR) << "Error in Error in CO_OD_ROM: " << odStorFile_rom;
+	//fprintf(stderr, "Program init - %s - Error in CO_OD_ROM.\n", odStorFile_rom);
 	exit(EXIT_FAILURE);
     }
 
     /* initialize Object Dictionary storage */
+    //std::cout << "odStorStatus_rom: " << odStorStatus_rom << std::endl;
+    //std::cout << "odStorStatus_eeprom: " << odStorStatus_eeprom << std::endl;
     odStorStatus_rom = CO_OD_storage_init(&odStor, (uint8_t*) &CO_OD_ROM, sizeof(CO_OD_ROM), odStorFile_rom);
     odStorStatus_eeprom = CO_OD_storage_init(&odStorAuto, (uint8_t*) &CO_OD_EEPROM, sizeof(CO_OD_EEPROM), odStorFile_eeprom);
 
 #endif
-    /* Catch signals SIGINT and SIGTERM */
-    /*if(signal(SIGINT, sigHandler) == SIG_ERR)
-	CO_errExit("Program init - SIGINIT handler creation failed");
-    if(signal(SIGTERM, sigHandler) == SIG_ERR)
-	CO_errExit("Program init - SIGTERM handler creation failed");*/
+
+    // Catch signals SIGINT and SIGTERM should close connections....
+    //if(signal(SIGINT, sigHandler) == SIG_ERR)
+	//CO_errExit("Program init - SIGINIT handler creation failed");
+
+    //if(signal(SIGTERM, sigHandler) == SIG_ERR)
+	//CO_errExit("Program init - SIGTERM handler creation failed");
+
 
     /* increase variable each startup. Variable is automatically stored in non-volatile memory. */
-    printf(", count=%u ...\n", ++OD_powerOnCounter);
+    //printf(", count=%u ...\n", ++OD_powerOnCounter);
 
-  communicationReset(serial);
+    if (communicationStart(serial) < 0) {
+	LOG(ERROR) << "Serial communication failed";
+	//CO_exit();
+	return 10;
+	//CO_errExit("Serial communication failed");
+    }
 
-  /* initialize OD objects 1010 and 1011 and verify errors. */
+#ifdef USE_STORAGE
+    /* initialize OD objects 1010 and 1011 and verify errors. */
     CO_OD_configure(CO->SDO[0], OD_H1010_STORE_PARAM_FUNC, CO_ODF_1010, (void*)&odStor, 0, 0U);
     CO_OD_configure(CO->SDO[0], OD_H1011_REST_PARAM_FUNC, CO_ODF_1011, (void*)&odStor, 0, 0U);
+
     if(odStorStatus_rom != CO_ERROR_NO) {
+	std::cout << "odStorStatus_rom: " << odStorStatus_rom << std::endl;
 	CO_errorReport(CO->em, CO_EM_NON_VOLATILE_MEMORY, CO_EMC_HARDWARE, (uint32_t)odStorStatus_rom);
     }
+
     if(odStorStatus_eeprom != CO_ERROR_NO) {
+	std::cout << "odStorStatus_eeprom: " << odStorStatus_eeprom << std::endl;
 	CO_errorReport(CO->em, CO_EM_NON_VOLATILE_MEMORY, CO_EMC_HARDWARE, (uint32_t)odStorStatus_eeprom + 1000);
     }
 
+#endif
+    //boost::this_thread::sleep(boost::posix_time::milliseconds(1));
 
-  tmrThread = new boost::thread(tmrTask_thread);
-  processThread = new boost::thread(processTask_thread);
+    //CO_EM_initCallback(CO->em,CO_Emergency_Handler);
 
+    tmrThread = new boost::thread(tmrTask_thread);
+    processThread = new boost::thread(processTask_thread);
+
+#ifdef USE_STORAGE
     //reset = CO_RESET_NOT;
+    //CO_OD_storage_autoSave(&odStorAuto, CO_timer1ms, 60000);
+#endif
 
-    printf("%s - running ...\n"/*, argv[0]*/);
+    LOG(DEBUG) << "...done";
+    return 0;
 }
 
+/*******************************************************************************/
+int communicationStart(SerialPort *serial) {
+    CO_ReturnError_t err= CO_ERROR_NO;
+
+    if (serial == NULL)
+        serial = new SerialPort();
+
+    err = CO_init( *((int32_t*)serial), OD_CANNodeID, OD_CANBitRate);
+    if(err != CO_ERROR_NO) {
+	LOG(ERROR) << "Failed CO_init: " << err;
+	//TODO report to whom
+	CO_errorReport(CO->em, CO_EM_MEMORY_ALLOCATION_ERROR, CO_EMC_SOFTWARE_INTERNAL, err);
+	return -1;
+	//CO_errExit("Failed CO_init");
+    }
+
+    _port.reset(serial);
+    _port->end_of_line_char('\n'/*0x0d*/);
+    _port->_func = on_receive_can;
+    LOG(DEBUG) << "Starting serial communication...";
+    if (!_port->start("/dev/ttyACM0", 230400)) {
+	LOG(ERROR) << "BAD SERIAL on /dev/ttyACM0:230400!";
+	return -1;
+    }
+
+    // Setting receive callback
+    //_port->async_read_some_(on_receive_can);
+
+    // start CAN
+    CO_CANsetNormalMode(CO->CANmodule[0]);
+    LOG(DEBUG) << "...done.";
+    return 0;
+}
 
 /*******************************************************************************/
 void communicationReset(SerialPort *serial) {
-  CO_ReturnError_t err;
-  if (serial == NULL)
-      serial = new SerialPort();
-    err = CO_init( *((int32_t*)serial)/* CAN module address */, CO_OD_ROM.CANNodeID /*1 NodeID */, CO_OD_ROM.CANBitRate /*125 bit rate */);
-  if(err != CO_ERROR_NO) {
-      while(1);
-      CO_errorReport(CO->em, CO_EM_MEMORY_ALLOCATION_ERROR, CO_EMC_SOFTWARE_INTERNAL, err);
-  }
+    /*CO_ReturnError_t err= CO_ERROR_NO;
+    if (serial == NULL)
+	serial = new SerialPort();
+    err = CO_init( *((int32_t*)serial), OD_CANNodeID , OD_CANBitRate );
+    std::cout << "CO_init: " << err << std::endl;
+    if(err != CO_ERROR_NO) {
+	//while(1);
+	CO_errorReport(CO->em, CO_EM_MEMORY_ALLOCATION_ERROR, CO_EMC_SOFTWARE_INTERNAL, err);
+	exit(0);
+    }
     _port = serial;
-
-    if (!_port->start("/dev/ttyACM0", 9600)) {
+    _port->end_of_line_char('\n');
+    _port->_func = on_receive_can;
+    if (!_port->start("/dev/ttyACM0", 115200)) {
 	printf("BAD SERIAL.\n");
 	return;
     }
+    //_port->async_read_some_(on_receive_can);
 
-  _port->async_read_some_(on_receive_can);
 
-
-  /* start CAN */
-  CO_CANsetNormalMode(CO->CANmodule[0]);
+    // start CAN
+    CO_CANsetNormalMode(CO->CANmodule[0]);
+    */
 }
 
 
 /*******************************************************************************/
 void programEnd(void){
-
+    if(_port)
+	_port->stop();
+    //delete _port;
 }
 
 /*******************************************************************************/
 void processTask_thread(void) {
-    std::cout << "processTask_thread" << std::endl;
-  CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
-  uint16_t timer1msPrevious = CO_timer1ms, timerNext_ms = 50;
-  //Timer t;
-    while(1) {
-      //t.start();
-      uint16_t timer1msCopy, timer1msDiff;
+    //std::cout << "processTask_thread" << std::endl;
+    //CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
+    uint16_t timer1msPrevious = CO_timer1ms, timerNext_ms = 50;
+    boost::posix_time::ptime tick;
+    boost::posix_time::time_duration diff;
+    while(reset_NMT == CO_RESET_NOT) {
+	tick = boost::posix_time::microsec_clock::local_time();
+	uint16_t timer1msCopy, timer1msDiff;
 
-      timer1msCopy = CO_timer1ms;
-      timer1msDiff = timer1msCopy - timer1msPrevious;
-      timer1msPrevious = timer1msCopy;
-      reset = CO_process(CO, timer1msDiff, &timerNext_ms);
-      //printf("timerNext_ms %d\n", timerNext_ms);
-      /*#ifdef USE_STORAGE
+	timer1msCopy = CO_timer1ms;
+	timer1msDiff = timer1msCopy - timer1msPrevious;
+	timer1msPrevious = timer1msCopy;
+    reset_NMT = CO_process(CO, 50, NULL);
+	//printf("timerNext_ms %d\n", timerNext_ms);
+	/*#ifdef USE_STORAGE
 	CO_EE_process(&CO_EEO);
       #endif*/
-      boost::this_thread::sleep(boost::posix_time::milliseconds(timerNext_ms));
+    boost::this_thread::sleep(boost::posix_time::milliseconds(50));
+	diff = boost::posix_time::microsec_clock::local_time() - tick;
+    //std::cout << "processTask_thread: " << diff.total_milliseconds() << " milliseconds" << std::endl;
     }
+    LOG(DEBUG) << "processTask_thread done!";
 }
-
 
 /*******************************************************************************/
 /* timer thread executes in constant intervals ********************************/
 void tmrTask_thread(void) {
-    std::cout << "tmrTask_thread" << std::endl;
-  CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
-  //Timer t;
-    while(1) {
-      //t.start();
-      boost::this_thread::sleep(boost::posix_time::milliseconds(1));
-      INCREMENT_1MS(CO_timer1ms);
+    //std::cout << "tmrTask_thread" << std::endl;
+    //boost::posix_time::ptime tick;
+    //boost::posix_time::time_duration diff;
+    while(reset_NMT == CO_RESET_NOT) {
+	//tick = boost::posix_time::microsec_clock::local_time();
+    boost::this_thread::sleep(boost::posix_time::milliseconds(50));
+	INCREMENT_1MS(CO_timer1ms);
 
-      if(CO->CANmodule[0]->CANnormal) {
-          bool_t syncWas;
+	/* Lock PDOs and OD */
+	CO_LOCK_OD();
 
-	  // Process Sync and read inputs
-          syncWas = CO_process_SYNC_RPDO(CO, TMR_TASK_INTERVAL);
+	if(CO->CANmodule[0]->CANnormal) {
+	    bool_t syncWas;
 
-	  // Further I/O or nonblocking application code may go here.
+	    // Process Sync and read inputs
+	    syncWas = CO_process_SYNC_RPDO(CO, TMR_TASK_INTERVAL);
 
-	  // Write outputs
-          CO_process_TPDO(CO, syncWas, TMR_TASK_INTERVAL);
+	    // Further I/O or nonblocking application code may go here.
 
-	  // verify timer overflow
-          if(0) {
-              CO_errorReport(CO->em, CO_EM_ISR_TIMER_OVERFLOW, CO_EMC_SOFTWARE_INTERNAL, 0U);
-          }
-        }
-	//t.stop();
-        //printf("The time taken was %d seconds\n", t.read_ms());
-	//t.reset();
+	    // Write outputs
+	    CO_process_TPDO(CO, syncWas, TMR_TASK_INTERVAL);
+
+	    if (OD_errorRegister > 0) {
+		LOG(DEBUG) << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
+		InterEmergSignal();
+	    }
+	    //if ()
+	    // verify timer overflow
+	    if(0) {
+		CO_errorReport(CO->em, CO_EM_ISR_TIMER_OVERFLOW, CO_EMC_SOFTWARE_INTERNAL, 0U);
+	    }
+	}
+	/* Unlock */
+	CO_UNLOCK_OD();
+
+	//diff = boost::posix_time::microsec_clock::local_time() - tick;
+	//std::cout << "The time taken was " << diff.total_milliseconds() << " milliseconds" << std::endl;
     }
+    LOG(DEBUG) << "tmrTask_thread done!";
 }
+
+boost::posix_time::ptime count = boost::posix_time::microsec_clock::local_time();
 
 void on_receive_can(const std::string &data) {
     std::vector<std::string> strs;
+    //count = boost::posix_time::microsec_clock::local_time();
     boost::split(strs,data,boost::is_any_of(" "));
-    //std::cout << data << std::endl;
+    #ifdef CO_DEBUG
+	std::cout << "READ:-->" << data << std::endl;
+    #endif
+    std::cout << "READ:-->" << data << std::endl;
+    //LOG(DEBUG) << "READ:-->" << data;
+    //std::cout << "READ:-->" << data << std::endl;
+    //boost::posix_time::time_duration diff = boost::posix_time::microsec_clock::local_time() - count;
+    //std::cout << "The time taken was " << diff.total_milliseconds() << " milliseconds" << std::endl;
+    //std::cout << "READ:-->" << data << std::endl;
+    //count = boost::posix_time::microsec_clock::local_time();
     //std::cout << "SIZE split: " << strs.size() << std::endl;
+    //strs.erase(strs.end());
 
     CO_CANrxMsg_t rcvMsg;
     if (strs.size() == 12) {
 	//strs.at<unsigned short>(0); //CANFormat -> CANStandard = 0, CANExtended = 1
 	//strs.at<unsigned short>(1); //CANType -> CANData   = 0, CANRemote = 1
+	//for (unsigned char i=0; i<strs.size(); i++) {
+	//    std::cout << "data[" << (int)i << "]: " << strs[i] << "size: " << strs[i].size() << std::endl;
+	//}
 	try {
 	    rcvMsg.ident = boost::lexical_cast<unsigned int>(strs[2]);
 	    rcvMsg.DLC = boost::lexical_cast<unsigned short>(strs[3]);
 	    //std::cout << "id: " << rcvMsg.ident << " -- " << boost::lexical_cast<unsigned int>(strs[2]) << std::endl;
-	    //std::cout << "length: " << rcvMsg.DLC << " -- " << boost::lexical_cast<unsigned short>(strs[3]) << std::endl;
+	    //std::cout << "length: " << (int)rcvMsg.DLC << " -- " << boost::lexical_cast<unsigned short>(strs[3]) << std::endl;
 	    for (unsigned char i=0; i<rcvMsg.DLC; i++) {
-		rcvMsg.data[i] = boost::lexical_cast<unsigned short>(strs[i+2]);
-		//std::cout << "data[" << i << "]: " << rcvMsg.data[i] << " -- " << boost::lexical_cast<unsigned short>(strs[i+2]) << std::endl;
+		//std::cout << "data[" << (int)i << "]: " << strs[i+4] << "size: " << strs[i+4].size() << std::endl;
+		rcvMsg.data[i] = boost::lexical_cast<unsigned short>(strs[i+4]);
+		//std::cout << "data[" << (int)i << "]: " << (int)rcvMsg.data[i] << " -- " << boost::lexical_cast<unsigned short>(strs[i+4]) << std::endl;
 	    }
-	} catch( boost::bad_lexical_cast const& ) {
-	    std::cout << "Error: input string was not valid" << std::endl;
+	} catch( boost::bad_lexical_cast const&e ) {
+        std::cout << "Error: input string was not valid -> " << e.what() << std::endl;
 	}
-	std::cout << "READ:-->" << data << std::endl;
+
 	CO_CANinterrupt_Rx(&rcvMsg);
-    } else
-	std::cout << "Error: input string was not valid" << std::endl;
+    } else {
+        std::cout << "Error: input string was not valid" << std::endl;
+    }
 }
+
+/*
+void CO_Emergency_Handler() {
+    LOG(ERROR) << "CO_Emergency_Handler!!!!!!";
+    uint16_t errorCode = *(uint16_t*)CO->em->bufReadPtr;
+    uint8_t errorBit = *(uint8_t*)(CO->em->bufReadPtr+3);
+    uint32_t infoCode = *(uint32_t*)(CO->em->bufReadPtr+4);
+
+    LOG(DEBUG) << "errorBit: 0x" << std::hex << (int)errorBit << "\t errorCode: 0x" << errorCode << "\t infoCode: 0x" << infoCode;
+
+    switch (errorBit) {
+    case CO_EM_HEARTBEAT_CONSUMER:
+
+	break;
+    case CO_EM_HB_CONSUMER_REMOTE_RESET:
+	CO_errorReset(CO->em, errorBit, infoCode);
+	break;
+    default:
+	break;
+    }
+
+}*/

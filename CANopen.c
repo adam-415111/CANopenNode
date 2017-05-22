@@ -44,8 +44,8 @@
  * to do so, delete this exception statement from your version.
  */
 
-
 #include "CANopen.h"
+#include <stdio.h>
 
 
 /* If defined, global variables will be used, otherwise CANopen objects will
@@ -71,6 +71,7 @@
     static CO_CANtx_t          *CO_CANmodule_txArray0;
     static CO_OD_extension_t   *CO_SDO_ODExtensions;
     static CO_HBconsNode_t     *CO_HBcons_monitoredNodes;
+    static CO_EMconsNode_t     *CO_EMcons_monitoredNodes;
 #if CO_NO_TRACE > 0
     static uint32_t            *CO_traceTimeBuffers[CO_NO_TRACE];
     static int32_t             *CO_traceValueBuffers[CO_NO_TRACE];
@@ -92,6 +93,7 @@
             || (CO_NO_RPDO < 1 || CO_NO_RPDO > 0x200)              \
             || (CO_NO_TPDO < 1 || CO_NO_TPDO > 0x200)              \
             || ODL_consumerHeartbeatTime_arrayLength      == 0     \
+	    || ODL_COB_ID_EMCYConsumer_arrayLength	  == 0     \
             || ODL_errorStatusBits_stringLength           < 10
         #error Features from CO_OD.h file are not corectly configured for this project!
     #endif
@@ -104,14 +106,21 @@
         #define CO_NO_HB_CONS   0
     #endif
 
+    #ifdef ODL_COB_ID_EMCYConsumer_arrayLength
+	#define CO_NO_EM_CONS   ODL_COB_ID_EMCYConsumer_arrayLength
+    #else
+	#define CO_NO_EM_CONS   0
+    #endif
+
     #define CO_RXCAN_NMT       0                                      /*  index for NMT message */
     #define CO_RXCAN_SYNC      1                                      /*  index for SYNC message */
     #define CO_RXCAN_RPDO     (CO_RXCAN_SYNC+CO_NO_SYNC)              /*  start index for RPDO messages */
     #define CO_RXCAN_SDO_SRV  (CO_RXCAN_RPDO+CO_NO_RPDO)              /*  start index for SDO server message (request) */
     #define CO_RXCAN_SDO_CLI  (CO_RXCAN_SDO_SRV+CO_NO_SDO_SERVER)     /*  start index for SDO client message (response) */
     #define CO_RXCAN_CONS_HB  (CO_RXCAN_SDO_CLI+CO_NO_SDO_CLIENT)     /*  start index for Heartbeat Consumer messages */
+    #define CO_RXCAN_CONS_EM  (CO_RXCAN_CONS_HB+CO_NO_HB_CONS)     /*  start index for Emergency Consumer messages */
     /* total number of received CAN messages */
-    #define CO_RXCAN_NO_MSGS (1+CO_NO_SYNC+CO_NO_RPDO+CO_NO_SDO_SERVER+CO_NO_SDO_CLIENT+CO_NO_HB_CONS)
+    #define CO_RXCAN_NO_MSGS (1+CO_NO_SYNC+CO_NO_RPDO+CO_NO_SDO_SERVER+CO_NO_SDO_CLIENT+CO_NO_HB_CONS+CO_NO_EM_CONS)
 
     #define CO_TXCAN_NMT       0                                      /*  index for NMT master message */
     #define CO_TXCAN_SYNC      CO_TXCAN_NMT+CO_NO_NMT_MASTER          /*  index for SYNC message */
@@ -120,6 +129,7 @@
     #define CO_TXCAN_SDO_SRV  (CO_TXCAN_TPDO+CO_NO_TPDO)              /*  start index for SDO server message (response) */
     #define CO_TXCAN_SDO_CLI  (CO_TXCAN_SDO_SRV+CO_NO_SDO_SERVER)     /*  start index for SDO client message (request) */
     #define CO_TXCAN_HB       (CO_TXCAN_SDO_CLI+CO_NO_SDO_CLIENT)     /*  index for Heartbeat message */
+    #define CO_TXCAN_EM       (CO_TXCAN_HB+CO_NO_HB_CONS)	      /*  index for Emergency message */
     /* total number of transmitted CAN messages */
     #define CO_TXCAN_NO_MSGS (CO_NO_NMT_MASTER+CO_NO_SYNC+CO_NO_EMERGENCY+CO_NO_TPDO+CO_NO_SDO_SERVER+CO_NO_SDO_CLIENT+1)
 
@@ -138,6 +148,8 @@
     static CO_TPDO_t            COO_TPDO[CO_NO_TPDO];
     static CO_HBconsumer_t      COO_HBcons;
     static CO_HBconsNode_t      COO_HBcons_monitoredNodes[CO_NO_HB_CONS];
+    static CO_EMconsumer_t      COO_EMcons;
+    static CO_EMconsNode_t      COO_EMcons_monitoredNodes[CO_NO_EM_CONS];
 #if CO_NO_SDO_CLIENT == 1
     static CO_SDOclient_t       COO_SDOclient;
 #endif
@@ -241,6 +253,8 @@ CO_ReturnError_t CO_init(
         CO->TPDO[i]                     = &COO_TPDO[i];
     CO->HBcons                          = &COO_HBcons;
     CO_HBcons_monitoredNodes            = &COO_HBcons_monitoredNodes[0];
+    CO->EMcons                          = &COO_EMcons;
+    CO_EMcons_monitoredNodes            = &COO_EMcons_monitoredNodes[0];
   #if CO_NO_SDO_CLIENT == 1
     CO->SDOclient                       = &COO_SDOclient;
   #endif
@@ -274,6 +288,8 @@ CO_ReturnError_t CO_init(
         }
         CO->HBcons                          = (CO_HBconsumer_t *)   calloc(1, sizeof(CO_HBconsumer_t));
         CO_HBcons_monitoredNodes            = (CO_HBconsNode_t *)   calloc(CO_NO_HB_CONS, sizeof(CO_HBconsNode_t));
+	CO->EMcons                          = (CO_EMconsumer_t *)   calloc(1, sizeof(CO_EMconsumer_t));
+	CO_EMcons_monitoredNodes            = (CO_EMconsNode_t *)   calloc(CO_NO_HB_CONS, sizeof(CO_EMconsNode_t));
       #if CO_NO_SDO_CLIENT == 1
         CO->SDOclient                       = (CO_SDOclient_t *)    calloc(1, sizeof(CO_SDOclient_t));
       #endif
@@ -304,6 +320,8 @@ CO_ReturnError_t CO_init(
                   + sizeof(CO_TPDO_t) * CO_NO_TPDO
                   + sizeof(CO_HBconsumer_t)
                   + sizeof(CO_HBconsNode_t) * CO_NO_HB_CONS
+		  + sizeof(CO_EMconsumer_t)
+		  + sizeof(CO_EMconsNode_t) * CO_NO_EM_CONS
   #if CO_NO_SDO_CLIENT == 1
                   + sizeof(CO_SDOclient_t)
   #endif
@@ -335,6 +353,8 @@ CO_ReturnError_t CO_init(
     }
     if(CO->HBcons                       == NULL) errCnt++;
     if(CO_HBcons_monitoredNodes         == NULL) errCnt++;
+    if(CO->EMcons                       == NULL) errCnt++;
+    if(CO_EMcons_monitoredNodes         == NULL) errCnt++;
   #if CO_NO_SDO_CLIENT == 1
     if(CO->SDOclient                    == NULL) errCnt++;
   #endif
@@ -358,7 +378,6 @@ CO_ReturnError_t CO_init(
         return CO_ERROR_PARAMETERS;
     }
 
-
     err = CO_CANmodule_init(
             CO->CANmodule[0],
             CANbaseAddress,
@@ -367,7 +386,7 @@ CO_ReturnError_t CO_init(
             CO_CANmodule_txArray0,
             CO_TXCAN_NO_MSGS,
             bitRate);
-
+    printf("CO_CANmodule_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
     for (i=0; i<CO_NO_SDO_SERVER; i++)
@@ -398,7 +417,7 @@ CO_ReturnError_t CO_init(
                 CO->CANmodule[0],
                 CO_TXCAN_SDO_SRV+i);
     }
-
+    printf("CO_SDO_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
 
@@ -414,7 +433,7 @@ CO_ReturnError_t CO_init(
             CO->CANmodule[0],
             CO_TXCAN_EMERG,
             CO_CAN_ID_EMERGENCY + nodeId);
-
+    printf("CO_EM_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
 
@@ -429,7 +448,7 @@ CO_ReturnError_t CO_init(
             CO->CANmodule[0],
             CO_TXCAN_HB,
             CO_CAN_ID_HEARTBEAT + nodeId);
-
+    printf("CO_NMT_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
 
@@ -441,6 +460,7 @@ CO_ReturnError_t CO_init(
             0,                /* rtr */
             2,                /* number of data bytes */
             0);               /* synchronous message flag bit */
+    //printf("CO_CANtxBufferInit: %d\n", NMTM_txBuff);
 #endif
 
 
@@ -456,7 +476,7 @@ CO_ReturnError_t CO_init(
             CO_RXCAN_SYNC,
             CO->CANmodule[0],
             CO_TXCAN_SYNC);
-
+    printf("CO_SYNC_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
 
@@ -479,7 +499,7 @@ CO_ReturnError_t CO_init(
                 OD_H1600_RXPDO_1_MAPPING+i,
                 CANdevRx,
                 CANdevRxIdx);
-
+	printf("CO_RPDO_init: %d\n", err);
         if(err){CO_delete(CANbaseAddress); return err;}
     }
 
@@ -499,23 +519,33 @@ CO_ReturnError_t CO_init(
                 OD_H1A00_TXPDO_1_MAPPING+i,
                 CO->CANmodule[0],
                 CO_TXCAN_TPDO+i);
-
+	printf("CO_TPDO_init: %d\n", err);
         if(err){CO_delete(CANbaseAddress); return err;}
     }
 
-
     err = CO_HBconsumer_init(
-            CO->HBcons,
-            CO->em,
-            CO->SDO[0],
-           &OD_consumerHeartbeatTime[0],
-            CO_HBcons_monitoredNodes,
-            CO_NO_HB_CONS,
-            CO->CANmodule[0],
-            CO_RXCAN_CONS_HB);
-
+	    CO->HBcons,
+	    CO->em,
+	    CO->SDO[0],
+	   &OD_consumerHeartbeatTime[0],
+	    CO_HBcons_monitoredNodes,
+	    CO_NO_HB_CONS,
+	    CO->CANmodule[0],
+	    CO_RXCAN_CONS_HB);
+    printf("CO_HBconsumer_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 
+    err = CO_EMconsumer_init(
+	    CO->EMcons,
+            CO->em,
+            CO->SDO[0],
+	   &OD_COB_ID_EMCYConsumer[0],
+	    CO_EMcons_monitoredNodes,
+	    CO_NO_EM_CONS,
+            CO->CANmodule[0],
+	    CO_RXCAN_CONS_EM);
+    printf("CO_EMconsumer_init: %d\n", err);
+    if(err){CO_delete(CANbaseAddress); return err;}
 
 #if CO_NO_SDO_CLIENT == 1
     err = CO_SDOclient_init(
@@ -526,7 +556,7 @@ CO_ReturnError_t CO_init(
             CO_RXCAN_SDO_CLI,
             CO->CANmodule[0],
             CO_TXCAN_SDO_CLI);
-
+    printf("CO_SDOclient_init: %d\n", err);
     if(err){CO_delete(CANbaseAddress); return err;}
 #endif
 
@@ -580,6 +610,8 @@ void CO_delete(int32_t CANbaseAddress){
   #endif
     free(CO_HBcons_monitoredNodes);
     free(CO->HBcons);
+    free(CO_EMcons_monitoredNodes);
+    free(CO->EMcons);
     for(i=0; i<CO_NO_RPDO; i++){
         free(CO->RPDO[i]);
     }
@@ -659,6 +691,11 @@ CO_NMT_reset_cmd_t CO_process(
             NMTisPreOrOperational,
             timeDifference_ms);
 
+    CO_EMconsumer_process(
+	    CO->EMcons,
+	    NMTisPreOrOperational,
+	    timeDifference_ms);
+
     return reset;
 }
 
@@ -681,6 +718,7 @@ bool_t CO_process_SYNC_RPDO(
     }
 
     for(i=0; i<CO_NO_RPDO; i++){
+	//printf("CO_RPDO_process i: %d\n",i);
         CO_RPDO_process(CO->RPDO[i], syncWas);
     }
 

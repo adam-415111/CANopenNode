@@ -50,7 +50,7 @@
 //#define USE_EEPROM 1
 //#define CO_DEBUG 1
 
-#define USE_STORAGE
+//#define USE_STORAGE
 
 #include <serialPort.h>
 
@@ -59,17 +59,18 @@ extern "C"{
 #endif
 
 #include <CANopen.h>
-//#include <CO_driver.h>
+
 #ifdef USE_STORAGE
     #include "CO_OD_storage.h"
 #endif
 
-
-//CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
-
 #ifdef __cplusplus
 } // extern "C"
 #endif
+
+extern CO_NMT_reset_cmd_t reset_NMT;
+
+extern void (*InterEmergSignal)(void);
 
 /**
  * @defgroup CO_application Application interface
@@ -167,7 +168,7 @@ extern "C"{
 /**
  * Called after microcontroller reset.
  */
-void programStart(SerialPort *serial = NULL);
+int startCO(SerialPort *serial = NULL);
 
 
 /**
@@ -175,7 +176,12 @@ void programStart(SerialPort *serial = NULL);
  */
 void communicationReset(SerialPort *serial = NULL);
 
+/**
+ * Called after communication reset.
+ */
+int communicationStart(SerialPort *serial = NULL);
 
+void CO_exit();
 /**
  * Called before program end.
  */
@@ -198,6 +204,8 @@ static void tmrTask_thread(void);
 //void program1ms(void);
 
 void on_receive_can(const std::string &data);
+
+void CO_Emergency_Handler();
 
 /** @} */
 #endif

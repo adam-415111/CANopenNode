@@ -60,7 +60,7 @@
 static void CO_SYNC_receive(void *object, const CO_CANrxMsg_t *msg){
     CO_SYNC_t *SYNC;
     uint8_t operState;
-
+    //printf("CO_SYNC_receive msg:%d\n",msg->ident);
     SYNC = (CO_SYNC_t*)object;   /* this is the correct pointer type of the first argument */
     operState = *SYNC->operatingState;
 
