@@ -76,7 +76,7 @@ static void CO_HBcons_receive(void *object, const CO_CANrxMsg_t *msg){
 /*
  * Configure one monitored node.
  */
-static void CO_HBcons_monitoredNodeConfig(
+void CO_HBcons_monitoredNodeConfig(
         CO_HBconsumer_t        *HBcons,
         uint8_t                 idx,
         uint32_t                HBconsTime)
@@ -243,10 +243,10 @@ void CO_HBconsumer_process(
 		    monitoredNode->timeoutTimer += timeDifference_ms;
 		//printf("monitoredNode->monStarted: %s\t", monitoredNode->monStarted ? "true" : "false");
                 if(monitoredNode->monStarted){
-		    /*printf ("monitoredNode i: %d\t", i);
+            /*printf ("monitoredNode i: %d\t", i);
 		    printf ("monitoredNode->timeoutTimer %d\t",monitoredNode->timeoutTimer);
 		    printf ("monitoredNode->time %d\t",monitoredNode->time);
-		    printf ("monitoredNode->monStarted\n");*/
+            printf ("monitoredNode->monStarted\n");*/
                     if(monitoredNode->timeoutTimer >= monitoredNode->time){
                         CO_errorReport(HBcons->em, CO_EM_HEARTBEAT_CONSUMER, CO_EMC_HEARTBEAT, i);
                         monitoredNode->NMTstate = 0;

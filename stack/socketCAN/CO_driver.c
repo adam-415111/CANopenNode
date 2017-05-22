@@ -435,10 +435,10 @@ void CO_CANrxWait(CO_CANmodule_t *CANmodule){
 		std::cout << " " << rcvMsg->data[i];
 	    std::cout << std::endl;
 	#endif
-	    /*printf("READ:--> %03x %d", rcvMsg->ident, rcvMsg->DLC);
+        /*printf("READ:--> %03x %d", rcvMsg->ident, rcvMsg->DLC);
 	    for (unsigned char i = 0; i < rcvMsg->DLC; i++)
-		printf("  %02x", rcvMsg->data[i]);
-	    printf("\n");*/
+        printf("  %02x", rcvMsg->data[i]);
+        printf("\n");*/
 
             /* Search rxArray form CANmodule for the matching CAN-ID. */
             buffer = &CANmodule->rxArray[0];

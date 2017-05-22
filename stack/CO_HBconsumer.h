@@ -147,5 +147,10 @@ void CO_HBconsumer_process(
 }
 #endif /*__cplusplus*/
 
+void CO_HBcons_monitoredNodeConfig(
+        CO_HBconsumer_t        *HBcons,
+        uint8_t                 idx,
+        uint32_t                HBconsTime);
+
 /** @} */
 #endif
