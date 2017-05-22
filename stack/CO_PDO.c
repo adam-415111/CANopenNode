@@ -920,6 +920,7 @@ void CO_RPDO_process(CO_RPDO_t *RPDO, bool_t syncWas){
     }
     else if(!RPDO->synchronous || syncWas)
     {
+	//printf("  VALID!\n");
         uint8_t bufNo = 0;
 
         /* Determine, which of the two rx buffers, contains relevant message. */
