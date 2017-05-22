@@ -30,6 +30,7 @@
 #include <sys/timerfd.h>
 #include <sys/epoll.h>
 
+void (*InterEmergSignal)(void) = NULL;
 
 #define NSEC_PER_SEC            (1000000000)    /* The number of nanoseconds per second. */
 #define NSEC_PER_MSEC           (1000000)       /* The number of nanoseconds per millisecond. */
@@ -159,7 +160,11 @@ bool_t taskMain_process(int fd, CO_NMT_reset_cmd_t *reset, uint16_t timer1ms) {
 
         /* CANopen process */
         *reset = CO_process(CO, timer1msDiff, &timerNext);
-
+	unsigned char er = OD_errorRegister;
+	if (OD_errorRegister > 0) {
+	    //LOG(DEBUG) << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
+	    InterEmergSignal();
+	}
 
         /* Set delay for next sleep. */
         taskMain.tmrSpec.it_value.tv_nsec = (long)(++timerNext) * NSEC_PER_MSEC;
@@ -290,6 +295,7 @@ bool_t CANrx_taskTmr_process(int fd) {
 
             /* Write outputs */
             CO_process_TPDO(CO, syncWas, taskRT.intervalus);
+
         }
 
         /* Unlock */
