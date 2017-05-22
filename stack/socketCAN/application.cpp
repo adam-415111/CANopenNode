@@ -65,7 +65,8 @@
 >>>>>>> Moved to socketCAN
 =======
 //#include <easylogging++.h>
-#include <boost/log/trivial.hpp>
+//#include <boost/log/trivial.hpp>
+#include <data/logger.hpp>
 #include <net/if.h>
 #include <sys/epoll.h>
 #include <pthread.h>
@@ -106,6 +107,7 @@ static CO_time_t            CO_time;            /* Object for current time */
 
 /* Signal handler */
 volatile sig_atomic_t CO_endProgram = 0;
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 <<<<<<< 78f8fc24aae6a70107496f0aa989dd1c564f07c7
 /*static void sigHandler(int sig) {
     CO_endProgram = 1;
@@ -128,14 +130,17 @@ void CO_exit() {
 
 =======
 static void sigHandler(int sig) {
+=======
+/*static void sigHandler(int sig) {
+>>>>>>> Using logger
     CO_endProgram = 1;
     CO_exit();
     exit(EXIT_SUCCESS);
-}
+}*/
 
 /* Helper functions ***********************************************************/
 void CO_exit() {
-    BOOST_LOG_TRIVIAL(debug) << "CO_Exit Called";
+    DEBUG << "CO_Exit Called";
 
     reset_NMT = CO_RESET_QUIT;
     CO_endProgram = 1;
@@ -156,6 +161,7 @@ void CO_exit() {
     delete tmrThread;
     tmrThread = NULL;
 
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 <<<<<<< 78f8fc24aae6a70107496f0aa989dd1c564f07c7
     if(pthread_join(rt_thread_id, NULL) != 0) {
         CO_errExit("Program end - pthread_join failed");
@@ -172,18 +178,30 @@ void CO_exit() {
 =======
     BOOST_LOG_TRIVIAL(debug) << "rt_thread_id done!";
 >>>>>>> changed log
+=======
+    if(pthread_join(rt_thread_id, NULL) != 0) {
+        CO_errExit("Program end - pthread_join failed");
+    }
+    DEBUG << "rt_thread_id done!";
+>>>>>>> Using logger
 
     /* delete objects from memory */
     CANrx_taskTmr_close();
     taskMain_close();
 
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 <<<<<<< 78f8fc24aae6a70107496f0aa989dd1c564f07c7
+=======
+>>>>>>> Using logger
 
     //CANrx_taskTmr_close();
     //taskMain_close();
 
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 =======
 >>>>>>> Moved to socketCAN
+=======
+>>>>>>> Using logger
     /*if (processThread) {
         processThread->join();
     }
@@ -196,6 +214,7 @@ void CO_exit() {
     boost::this_thread::sleep(boost::posix_time::milliseconds(200));
 
     CO_delete( CANdevice0Index );
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 <<<<<<< 93a1950d94f34ad8fbaff668d099055a58a68a4e
 <<<<<<< 78f8fc24aae6a70107496f0aa989dd1c564f07c7
     DEBUG << "CanOpen closed";
@@ -213,15 +232,25 @@ void CO_errExit(char* msg) {
 =======
     BOOST_LOG_TRIVIAL(debug) << "CanOpen closed";
 >>>>>>> changed log
+=======
+    DEBUG << "CanOpen closed";
+>>>>>>> Using logger
 }
 
+
+
 void CO_errExit(char* msg) {
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
     perror(msg);
 <<<<<<< 93a1950d94f34ad8fbaff668d099055a58a68a4e
     CO_exit();
     exit(EXIT_FAILURE);
 >>>>>>> Moved to socketCAN
 =======
+=======
+    ERROR << msg;
+    //perror(msg);
+>>>>>>> Using logger
     //CO_exit();
     //exit(EXIT_FAILURE);
 >>>>>>> changed log
@@ -237,6 +266,7 @@ void CO_error(const uint32_t info) {
 int startCO(std::string CANdevice) {
 
     if (CO != NULL) {
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 <<<<<<< 93a1950d94f34ad8fbaff668d099055a58a68a4e
 <<<<<<< 78f8fc24aae6a70107496f0aa989dd1c564f07c7
         DEBUG << "Reseting CO...";
@@ -247,18 +277,25 @@ int startCO(std::string CANdevice) {
 >>>>>>> Moved to socketCAN
 =======
         BOOST_LOG_TRIVIAL(debug) << "Reseting CO...";
+=======
+        DEBUG << "Reseting CO...";
+>>>>>>> Using logger
         CO_exit();
 >>>>>>> changed log
     }
 
     CANdevice0Index = if_nametoindex(CANdevice.c_str());
     if(CANdevice0Index == 0) {
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 <<<<<<< 93a1950d94f34ad8fbaff668d099055a58a68a4e
 <<<<<<< 78f8fc24aae6a70107496f0aa989dd1c564f07c7
         ERROR << "Can't find CAN device " << CANdevice;
 =======
         BOOST_LOG_TRIVIAL(error) << "Can't find CAN device " << CANdevice;
 >>>>>>> changed log
+=======
+        ERROR << "Can't find CAN device " << CANdevice;
+>>>>>>> Using logger
         return 11;
         /*char s[120];
         snprintf(s, 120, "Can't find CAN device \"%s\"", CANdevice);
@@ -368,6 +405,7 @@ int startCO(std::string CANdevice) {
     //printf(", count=%u ...\n", ++OD_powerOnCounter);
 
     if (communicationStart() < 0) {
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 <<<<<<< 93a1950d94f34ad8fbaff668d099055a58a68a4e
 <<<<<<< 78f8fc24aae6a70107496f0aa989dd1c564f07c7
         ERROR << "Communication failed";
@@ -382,6 +420,9 @@ int startCO(std::string CANdevice) {
 >>>>>>> Moved to socketCAN
 =======
         BOOST_LOG_TRIVIAL(error) << "Communication failed";
+=======
+        ERROR << "Communication failed";
+>>>>>>> Using logger
         //CO_exit();
         return 10;
         //CO_errExit("Serial communication failed");
@@ -444,7 +485,7 @@ int startCO(std::string CANdevice) {
 >>>>>>> Moved to socketCAN
 =======
     if(mainline_epoll_fd == -1) {
-        BOOST_LOG_TRIVIAL(error) << "Program init - epoll_create mainline failed";
+        ERROR << "Program init - epoll_create mainline failed";
         return 12;
         //CO_errExit("Program init - epoll_create mainline failed");
     }
@@ -467,7 +508,7 @@ int startCO(std::string CANdevice) {
 >>>>>>> Moved to socketCAN
 =======
     if(rt_thread_epoll_fd == -1) {
-        BOOST_LOG_TRIVIAL(error) << "Program init - epoll_create rt_thread failed";
+        ERROR << "Program init - epoll_create rt_thread failed";
         return 12;
         //CO_errExit("Program init - epoll_create rt_thread failed");
     }
@@ -511,7 +552,7 @@ int startCO(std::string CANdevice) {
 >>>>>>> Moved to socketCAN
 =======
     if(pthread_create(&rt_thread_id, NULL, rt_thread, NULL) != 0) {
-        BOOST_LOG_TRIVIAL(error) << "Program init - rt_thread creation failed";
+        ERROR << "Program init - rt_thread creation failed";
         return 12;
         //CO_errExit("Program init - rt_thread creation failed");
     }
@@ -522,7 +563,7 @@ int startCO(std::string CANdevice) {
 
         param.sched_priority = rtPriority;
         if(pthread_setschedparam(rt_thread_id, SCHED_FIFO, &param) != 0) {
-            BOOST_LOG_TRIVIAL(error) << "Program init - rt_thread set scheduler failed";
+            ERROR << "Program init - rt_thread set scheduler failed";
             return 12;
             //CO_errExit("Program init - rt_thread set scheduler failed");
         }
@@ -543,6 +584,7 @@ int startCO(std::string CANdevice) {
     //CO_OD_storage_autoSave(&odStorAuto, CO_timer1ms, 60000);
 #endif
 
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 <<<<<<< 93a1950d94f34ad8fbaff668d099055a58a68a4e
 <<<<<<< 78f8fc24aae6a70107496f0aa989dd1c564f07c7
     DEBUG << "...done";
@@ -552,6 +594,9 @@ int startCO(std::string CANdevice) {
 =======
     BOOST_LOG_TRIVIAL(debug) << "...done";
 >>>>>>> changed log
+=======
+    DEBUG << "...done";
+>>>>>>> Using logger
     return 0;
 }
 
@@ -581,7 +626,7 @@ int communicationStart() {
 >>>>>>> changed log
     err = CO_init( CANdevice0Index, OD_CANNodeID, OD_CANBitRate);
     if(err != CO_ERROR_NO) {
-        BOOST_LOG_TRIVIAL(error) << "Failed CO_init: " << err;
+        ERROR << "Failed CO_init: " << err;
         //TODO report to whom
         //CO_errorReport(CO->em, CO_EM_MEMORY_ALLOCATION_ERROR, CO_EMC_SOFTWARE_INTERNAL, err);
         return -1;
@@ -590,12 +635,16 @@ int communicationStart() {
 
     // start CAN
     //CO_CANsetNormalMode(CO->CANmodule[0]);
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 <<<<<<< 93a1950d94f34ad8fbaff668d099055a58a68a4e
     LOG(DEBUG) << "...done.";
 >>>>>>> Moved to socketCAN
 =======
     BOOST_LOG_TRIVIAL(debug) << "...done.";
 >>>>>>> changed log
+=======
+    DEBUG << "...done.";
+>>>>>>> Using logger
     return 0;
 }
 
@@ -727,12 +776,16 @@ void processTask_thread(void) {
         diff = boost::posix_time::microsec_clock::local_time() - tick;
         //std::cout << "processTask_thread: " << diff.total_milliseconds() << " milliseconds" << std::endl;
     }
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 <<<<<<< 93a1950d94f34ad8fbaff668d099055a58a68a4e
     LOG(DEBUG) << "processTask_thread done!";
 >>>>>>> Moved to socketCAN
 =======
     BOOST_LOG_TRIVIAL(debug) << "processTask_thread done!";
 >>>>>>> changed log
+=======
+    DEBUG << "processTask_thread done!";
+>>>>>>> Using logger
 }
 
 /*******************************************************************************/
@@ -765,11 +818,15 @@ void tmrTask_thread(void) {
             CO_process_TPDO(CO, syncWas, TMR_TASK_INTERVAL);
 
             if (OD_errorRegister > 0) {
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
 <<<<<<< 93a1950d94f34ad8fbaff668d099055a58a68a4e
                 DEBUG << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
 =======
                 BOOST_LOG_TRIVIAL(debug) << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
 >>>>>>> changed log
+=======
+                DEBUG << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
+>>>>>>> Using logger
                 //InterEmergSignal();
             }
             //if ()
@@ -825,8 +882,12 @@ void tmrTask_thread(void) {
 >>>>>>> Moved to socketCAN
 =======
     }
+<<<<<<< 36e81215a37d3087a1c622fa74dd602c9264bb8a
     BOOST_LOG_TRIVIAL(debug) << "tmrTask_thread done!";
 >>>>>>> changed log
+=======
+    DEBUG << "tmrTask_thread done!";
+>>>>>>> Using logger
 }
 
 void tmrTask_main(void) {
@@ -910,7 +971,7 @@ boost::posix_time::ptime count = boost::posix_time::microsec_clock::local_time()
             CO_error(0x11200000L);
         }
     }
-    BOOST_LOG_TRIVIAL(debug) << "tmrTask_main done!";
+    DEBUG << "tmrTask_main done!";
 }
 
 <<<<<<< 733a06d80491b6e21bfb486f7916a70f3669aebf
