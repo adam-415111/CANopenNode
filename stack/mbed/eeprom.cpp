@@ -150,7 +150,7 @@ CO_ReturnError_t CO_EE_init_1(
     }
 
     /* Configure eeprom */
-    ee->OD_EEPROMDev = new I2CEeprom(D3, D6, 0xA0, 16, 1024);
+    //ee->OD_EEPROMDev = new I2CEeprom(D3, D6, 0xA0, 16, 1024);
 
     /* configure object variables */
     ee->OD_EEPROMAddress = OD_EEPROMAddress;

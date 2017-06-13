@@ -31,7 +31,8 @@
  * conditions of the GNU General Public License cover the whole combination.
  *
  * As a special exception, the copyright holders of this library give
- * you permission to link this library with independent modules to
+ * you permi#include "application.h"
+ssion to link this library with independent modules to
  * produce an executable, regardless of the license terms of these
  * independent modules, and to copy and distribute the resulting
  * executable under terms of your choice, provided that you also meet,
@@ -50,11 +51,14 @@
 //#define USE_EEPROM 1
 //#define CO_DEBUG 1
 
-#include <rtos.h>
+#include <mbed.h>
+//#include <mbed_events.h>
+
+//extern EventQueue queue;
 
 #ifdef USE_EEPROM
     #include "eeprom.h"            /* 25LC08C eeprom chip connected to SPI2A port. */
-    //CO_EE_t                     CO_EEO;         /* Eeprom object */
+    extern CO_EE_t                     CO_EEO;         /* Eeprom object */
 #endif
 
 #ifdef __cplusplus
@@ -185,14 +189,22 @@ void programEnd(void);
  * @param timer1msDiff Time difference since last call
  */
 //void programAsync(uint16_t timer1msDiff);
-static void processTask_thread(void);
+//static void processTask_thread(void);
 
-
+//uint16_t timerNext_ms = 50;
 /**
  * Called cyclically from 1ms timer task.
  */
-static void tmrTask_thread(void);
+//static void tmrTask_thread(void);
 //void program1ms(void);
+
+/*******************************************************************************/
+void processTask_thread(void);
+
+
+/*******************************************************************************/
+/* timer thread executes in constant intervals ********************************/
+void tmrTask_thread(void);
 
 /** @} */
 #endif
