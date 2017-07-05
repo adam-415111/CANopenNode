@@ -95,7 +95,7 @@ void communicationReset(mbed::CAN *can){
 
   if (can == NULL)
     can = new mbed::CAN(CANRD,CANRT);
-    printf("OD_CANBitRate: %d\r\n", OD_CANBitRate);
+    //printf("OD_CANBitRate: %d\r\n", OD_CANBitRate);
   can->frequency(OD_CANBitRate*1000);
   can->filter(0x000, 0x700, CANStandard);
   //printf("handle: %d\r\n",handle);
@@ -128,8 +128,8 @@ void programEnd(void){
 }
 
 Timer t;
-uint16_t timerNext_ms = 50;
-#define TMR_TASK_INTERVAL   (50000)          /* Interval of tmrTask thread in microseconds */
+uint16_t timerNext_ms = 1;
+#define TMR_TASK_INTERVAL   (1000)          /* Interval of tmrTask thread in microseconds */
 /*******************************************************************************/
 void processTask_thread(void) {
   CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
@@ -171,10 +171,11 @@ void tmrTask_thread(void) {
           /* Further I/O or nonblocking application code may go here. */
           /* Write outputs */
           CO_process_TPDO(CO, syncWas, TMR_TASK_INTERVAL);
+
           /* verify timer overflow */
-          if(0) {
-              CO_errorReport(CO->em, CO_EM_ISR_TIMER_OVERFLOW, CO_EMC_SOFTWARE_INTERNAL, 0U);
-          }
+          //if(0) {
+          //    CO_errorReport(CO->em, CO_EM_ISR_TIMER_OVERFLOW, CO_EMC_SOFTWARE_INTERNAL, 0U);
+          //}
         }
         //wait_ms(1);
         //t.stop();

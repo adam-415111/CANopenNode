@@ -54,8 +54,6 @@
 #include <stdint.h>         /* for 'int8_t' to 'uint64_t' */
 #include <stdbool.h>        /* for 'true', 'false' */
 
-
-
 //#ifdef __cplusplus
 //extern "C" {
 //#endif
