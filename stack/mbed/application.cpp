@@ -171,7 +171,6 @@ void tmrTask_thread(void) {
           /* Further I/O or nonblocking application code may go here. */
           /* Write outputs */
           CO_process_TPDO(CO, syncWas, TMR_TASK_INTERVAL);
-
           /* verify timer overflow */
           //if(0) {
           //    CO_errorReport(CO->em, CO_EM_ISR_TIMER_OVERFLOW, CO_EMC_SOFTWARE_INTERNAL, 0U);

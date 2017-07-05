@@ -49,16 +49,21 @@
 
 //#define USE_EEPROM 1
 //#define CO_DEBUG 1
+//#define CO_INIT_DEBUG 1
 
 //#define USE_STORAGE
 
-#include <serialPort.h>
+//#include <serialPort.h>
+#include <string>
 
 #ifdef __cplusplus
 extern "C"{
 #endif
 
 #include <CANopen.h>
+void CO_error(const uint32_t info);
+#include "CO_Linux_tasks.h"
+#include "CO_time.h"
 
 #ifdef USE_STORAGE
     #include "CO_OD_storage.h"
@@ -168,25 +173,24 @@ extern void (*InterEmergSignal)(void);
 /**
  * Called after microcontroller reset.
  */
-int startCO(SerialPort *serial = NULL);
+int startCO(std::string CANdevice = "");
 
 
 /**
  * Called after communication reset.
  */
-void communicationReset(SerialPort *serial = NULL);
+void communicationReset();
 
 /**
  * Called after communication reset.
  */
-int communicationStart(SerialPort *serial = NULL);
+int communicationStart();
 
 void CO_exit();
 /**
  * Called before program end.
  */
 void programEnd(void);
-
 
 /**
  * Called cyclically from main.
@@ -201,6 +205,8 @@ static void processTask_thread(void);
  * Called cyclically from 1ms timer task.
  */
 static void tmrTask_thread(void);
+
+static void tmrTask_main(void);
 //void program1ms(void);
 
 void on_receive_can(const std::string &data);

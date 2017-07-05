@@ -30,7 +30,7 @@
 #include <stdlib.h> /* for malloc, free */
 #include <errno.h>
 #include <sys/socket.h>
-
+#include <stdio.h>
 
 /******************************************************************************/
 #ifndef CO_SINGLE_THREAD
@@ -316,6 +316,17 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer){
         err = CO_ERROR_TX_OVERFLOW;
     }
 
+#ifdef CO_DEBUG
+    std::cout << "READ:-->" << buffer->ident << " " << buffer->DLC;
+    for (unsigned char i = 0; i < buffer->DLC; i++)
+	std::cout << " " << buffer->data[i];
+    std::cout << std::endl;
+#endif
+    /*printf("SEND:--> %03x %d", buffer->ident, buffer->DLC);
+    for (unsigned char i = 0; i < buffer->DLC; i++)
+	printf("  %02x", buffer->data[i]);
+    printf("\n");*/
+
     return err;
 }
 
@@ -417,6 +428,17 @@ void CO_CANrxWait(CO_CANmodule_t *CANmodule){
 
             rcvMsg = (CO_CANrxMsg_t *) &msg;
             rcvMsgIdent = rcvMsg->ident;
+
+	#ifdef CO_DEBUG
+	    std::cout << "SEND:-->" << rcvMsg->ident << " " << rcvMsg->DLC;
+	    for (unsigned char i = 0; i < rcvMsg->DLC; i++)
+		std::cout << " " << rcvMsg->data[i];
+	    std::cout << std::endl;
+	#endif
+        /*printf("READ:--> %03x %d", rcvMsg->ident, rcvMsg->DLC);
+	    for (unsigned char i = 0; i < rcvMsg->DLC; i++)
+        printf("  %02x", rcvMsg->data[i]);
+        printf("\n");*/
 
             /* Search rxArray form CANmodule for the matching CAN-ID. */
             buffer = &CANmodule->rxArray[0];

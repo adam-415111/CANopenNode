@@ -49,6 +49,7 @@
 #include "CO_Emergency.h"
 #include "CO_NMT_Heartbeat.h"
 #include "CO_HBconsumer.h"
+#include "CANopen.h"
 
 /*
  * Read received message from CAN module.
@@ -75,7 +76,7 @@ static void CO_HBcons_receive(void *object, const CO_CANrxMsg_t *msg){
 /*
  * Configure one monitored node.
  */
-static void CO_HBcons_monitoredNodeConfig(
+void CO_HBcons_monitoredNodeConfig(
         CO_HBconsumer_t        *HBcons,
         uint8_t                 idx,
         uint32_t                HBconsTime)
@@ -94,7 +95,7 @@ static void CO_HBcons_monitoredNodeConfig(
 
     /* is channel used */
     if(NodeID && monitoredNode->time){
-        COB_ID = NodeID + 0x700;
+	COB_ID = NodeID + CO_CAN_ID_HEARTBEAT;
     }
     else{
         COB_ID = 0;
@@ -207,6 +208,7 @@ void CO_HBconsumer_process(
         bool_t                  NMTisPreOrOperational,
         uint16_t                timeDifference_ms)
 {
+    //printf ("CO_HBconsumer_process\n");
     uint8_t i;
     uint8_t AllMonitoredOperationalCopy;
     CO_HBconsNode_t *monitoredNode;
@@ -215,11 +217,18 @@ void CO_HBconsumer_process(
     monitoredNode = &HBcons->monitoredNodes[0];
 
     if(NMTisPreOrOperational){
+	//printf ("NMTisPreOrOperational\n");
         for(i=0; i<HBcons->numberOfMonitoredNodes; i++){
+	    //printf ("monitoredNode i: %d\t", i);
             if(monitoredNode->time){/* is node monitored */
+		//printf ("monitoredNode i: %d\t", i);
                 /* Verify if new Consumer Heartbeat message received */
                 if(monitoredNode->CANrxNew){
+		    //printf ("monitoredNode->CANrxNew\n");
                     if(monitoredNode->NMTstate){
+			//printf ("monitoredNode->timeoutTimer %d\n",monitoredNode->timeoutTimer);
+			//printf ("RESET HB!\r\n");
+			//fflush(stdout);
                         /* not a bootup message */
                         monitoredNode->monStarted = true;
                         monitoredNode->timeoutTimer = 0;  /* reset timer */
@@ -228,9 +237,16 @@ void CO_HBconsumer_process(
                     monitoredNode->CANrxNew = false;
                 }
                 /* Verify timeout */
-                if(monitoredNode->timeoutTimer < monitoredNode->time) monitoredNode->timeoutTimer += timeDifference_ms;
-
+		//printf ("monitoredNode->timeoutTimer %d\n",monitoredNode->timeoutTimer);
+		//printf ("monitoredNode->time %d\n",monitoredNode->time);
+		if(monitoredNode->timeoutTimer < monitoredNode->time)
+		    monitoredNode->timeoutTimer += timeDifference_ms;
+		//printf("monitoredNode->monStarted: %s\t", monitoredNode->monStarted ? "true" : "false");
                 if(monitoredNode->monStarted){
+            /*printf ("monitoredNode i: %d\t", i);
+		    printf ("monitoredNode->timeoutTimer %d\t",monitoredNode->timeoutTimer);
+		    printf ("monitoredNode->time %d\t",monitoredNode->time);
+            printf ("monitoredNode->monStarted\n");*/
                     if(monitoredNode->timeoutTimer >= monitoredNode->time){
                         CO_errorReport(HBcons->em, CO_EM_HEARTBEAT_CONSUMER, CO_EMC_HEARTBEAT, i);
                         monitoredNode->NMTstate = 0;

@@ -13,26 +13,29 @@
 
 typedef boost::shared_ptr<boost::asio::serial_port> serial_port_ptr;
 
-#define SERIAL_PORT_READ_BUF_SIZE 256
+#define SERIAL_PORT_READ_BUF_SIZE 128
 
 class SerialPort
 {
 protected:
-	boost::asio::io_service io_service_;
-	//serial_port_ptr port_;
-	boost::mutex mutex_;
-	
-	char read_buf_raw_[SERIAL_PORT_READ_BUF_SIZE];
-	std::string read_buf_str_;
+    boost::asio::io_service io_service_;
+    //serial_port_ptr port_;
+    boost::mutex mutex_;
+
+    char read_buf_raw_[SERIAL_PORT_READ_BUF_SIZE];
+    std::string read_buf_str_;
 
 	char end_of_line_char_;
+    //boost::asio::streambuf receive_buffer;
+	int USB;
 
 private:
 	SerialPort(const SerialPort &p);
 	SerialPort &operator=(const SerialPort &p); 
 
-	boost::function<void(const std::string &)> _func;
+
 public:
+	boost::function<void(const std::string &)> _func;
 	serial_port_ptr port_;
 	SerialPort(void);
 	virtual ~SerialPort(void);
@@ -46,7 +49,7 @@ public:
 	int write_some(const std::string &buf);
 	int write_some(const char *buf, const int &size);
 
-	void async_read_some_(boost::function<void(const std::string &)> func);
+	//void async_read_some_(boost::function<void(const std::string &)> func);
 
 
 	/*static int get_port_number();
@@ -57,6 +60,6 @@ public:
 protected:
 	virtual void async_read_some_();
 	virtual void on_receive_(const boost::system::error_code& ec, size_t bytes_transferred);
-	virtual void on_receive_(const std::string &data);
+	//virtual void on_receive_(const std::string &data);
 
 };
