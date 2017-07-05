@@ -235,7 +235,7 @@ void CO_EM_process(
             (em->bufReadPtr != em->bufWritePtr || em->bufFull))
     {
         uint32_t preDEF;    /* preDefinedErrorField */
-        
+
         /* add error register */
         em->bufReadPtr[2] = *emPr->errorRegister;
 
@@ -358,6 +358,7 @@ void CO_errorReset(CO_EM_t *em, const uint8_t errorBit, const uint32_t infoCode)
     printf ("index: %d\t",index);
     printf ("bitmask: %d\t",bitmask);
     printf ("infoCode: %#x\t",infoCode);
+
     if(em == NULL){
         sendEmergency = false;
     }

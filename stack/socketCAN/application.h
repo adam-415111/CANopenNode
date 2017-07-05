@@ -49,6 +49,7 @@
 
 //#define USE_EEPROM 1
 //#define CO_DEBUG 1
+//#define CO_INIT_DEBUG 1
 
 //#define USE_STORAGE
 
