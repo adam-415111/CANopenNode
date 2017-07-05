@@ -187,6 +187,11 @@ static void CO_SDO_receive(void *object, const CO_CANrxMsg_t *msg){
 
     SDO = (CO_SDO_t*)object;   /* this is the correct pointer type of the first argument */
 
+    /* WARNING: When doing a SDO block upload and immediately after that
+     * starting another SDO request, this request is dropped. Especially if
+     * processing function has slow response.
+     * See: https://github.com/CANopenNode/CANopenNode/issues/39 */
+
     /* verify message length and message overflow (previous message was not processed yet) */
     if((msg->DLC == 8U) && (!SDO->CANrxNew)){
         if(SDO->state != CO_SDO_ST_DOWNLOAD_BL_SUBBLOCK) {
@@ -493,8 +498,16 @@ uint16_t CO_OD_getAttribute(CO_SDO_t *SDO, uint16_t entryNo, uint8_t subIndex){
         return object->attribute;
     }
     else if(object->attribute != 0U){/* Object type is Array */
+        bool_t exception_1003 = false;
         uint16_t attr = object->attribute;
-        if(subIndex == 0U){
+
+        /* Special exception: Object 1003,00 should be writable */
+        if(object->index == 0x1003 && subIndex == 0) {
+            exception_1003 = true;
+            attr |= CO_ODA_WRITEABLE;
+        }
+
+        if(subIndex == 0U  && exception_1003 == false){
             /* First subIndex is readonly */
             attr &= ~(CO_ODA_WRITEABLE | CO_ODA_RPDO_MAPABLE);
             attr |= CO_ODA_READABLE;
@@ -564,7 +577,7 @@ uint32_t CO_SDO_initTransfer(CO_SDO_t *SDO, uint16_t index, uint8_t subIndex){
     }
 
     /* verify existance of subIndex */
-    if(subIndex > SDO->OD[SDO->entryNo].maxSubIndex && 
+    if(subIndex > SDO->OD[SDO->entryNo].maxSubIndex &&
             SDO->OD[SDO->entryNo].pData != NULL)
     {
         return CO_SDO_AB_SUB_UNKNOWN;     /* Sub-index does not exist. */
@@ -670,6 +683,7 @@ uint32_t CO_SDO_readOD(CO_SDO_t *SDO, uint16_t SDOBufferSize){
 uint32_t CO_SDO_writeOD(CO_SDO_t *SDO, uint16_t length){
     uint8_t *SDObuffer = SDO->ODF_arg.data;
     uint8_t *ODdata = (uint8_t*)SDO->ODF_arg.ODdataStorage;
+    bool_t exception_1003 = false;
 
     /* is object writeable? */
     if((SDO->ODF_arg.attribute & CO_ODA_WRITEABLE) == 0){
@@ -717,8 +731,13 @@ uint32_t CO_SDO_writeOD(CO_SDO_t *SDO, uint16_t length){
     SDO->ODF_arg.offset += SDO->ODF_arg.dataLength;
     SDO->ODF_arg.firstSegment = false;
 
+    /* Special exception: 1003,00 is writable from network, but not in OD  */
+    if(SDO->ODF_arg.index == 0x1003 && SDO->ODF_arg.subIndex == 0) {
+        exception_1003 = true;
+    }
+
     /* copy data from SDO buffer to OD if not domain */
-    if(ODdata != NULL){
+    if(ODdata != NULL && exception_1003 == false){
         CO_LOCK_OD();
         while(length--){
             *(ODdata++) = *(SDObuffer++);
@@ -1251,14 +1270,15 @@ int8_t CO_SDO_process(
             /* Number of segments per block */
             SDO->blksize = SDO->CANrxData[4];
 
-            /* verify client subcommand and blksize */
-            if(((SDO->CANrxData[0]&0x03U) != 0x00U) || (SDO->blksize < 1U) || (SDO->blksize > 127U)){
+            /* verify client subcommand */
+            if((SDO->CANrxData[0]&0x03U) != 0x00U){
                 CO_SDO_abort(SDO, CO_SDO_AB_CMD);/* Client command specifier not valid or unknown. */
                 return -1;
             }
 
-            /* verify if SDO data buffer is large enough */
-            if(((SDO->blksize*7U) > SDO->ODF_arg.dataLength) && (!SDO->ODF_arg.lastSegment)){
+            /* verify blksize and if SDO data buffer is large enough */
+            if((SDO->blksize < 1U) || (SDO->blksize > 127U) ||
+               (((SDO->blksize*7U) > SDO->ODF_arg.dataLength) && (!SDO->ODF_arg.lastSegment))){
                 CO_SDO_abort(SDO, CO_SDO_AB_BLOCK_SIZE); /* Invalid block size (block mode only). */
                 return -1;
             }
@@ -1310,7 +1330,7 @@ int8_t CO_SDO_process(
 
                 /* verify if response is too early */
                 if(ackseq > SDO->sequence){
-                    CO_SDO_abort(SDO, CO_SDO_AB_BLOCK_SIZE); /* Invalid block size (block mode only). */
+                    CO_SDO_abort(SDO, CO_SDO_AB_SEQ_NUM); /* Invalid sequence */
                     return -1;
                 }
 

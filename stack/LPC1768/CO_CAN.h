@@ -1,11 +1,9 @@
-/**
- * Calculation of CRC 16 CCITT polynomial.
+/*
+ * CAN module object for LPC1768 microcontroller using Mbed SDK.
  *
- * @file        crc16-ccitt.h
- * @ingroup     CO_crc16_ccitt
- * @author      Lammert Bies
- * @author      Janez Paternoster
- * @copyright   2012 - 2013 Janez Paternoster
+ * @file        CO_CAN.h
+ * @author      Benoit Rapidel
+ * @copyright   2016 Benoit Rapidel
  *
  * This file is part of CANopenNode, an opensource CANopen Stack.
  * Project home page is <https://github.com/CANopenNode/CANopenNode>.
@@ -44,48 +42,28 @@
  * to do so, delete this exception statement from your version.
  */
 
+#ifndef CO_CAN_H
+#define CO_CAN_H
 
-#ifndef CRC16_CCITT_H
-#define CRC16_CCITT_H
-
-#ifdef __cplusplus
-extern "C" {
+#ifndef MBED_CAN
+#error "MBED_CAN must be defined to select CAN port"
 #endif
 
-/**
- * @defgroup CO_crc16_ccitt CRC 16 CCITT
- * @ingroup CO_CANopen
- * @{
- *
- * Calculation of CRC 16 CCITT polynomial.
- *
- * Equation:
- *
- * `x^16 + x^12 + x^5 + 1`
- */
+#include "mbed.h"
 
-
-/**
- * Calculate CRC sum on block of data.
- *
- * @param block Pointer to block of data.
- * @param blockLength Length of data in bytes;
- * @param crc Initial value (zero for xmodem). If block is split into
- * multiple segments, previous CRC is used as initial.
- *
- * @return Calculated CRC.
- */
-#ifdef CO_USE_OWN_CRC16
-extern
+#if (MBED_CAN == 0)
+#define MBED_CAN_RX		p9
+#define MBED_CAN_TX		p10
+#define MBED_CAN_REG	LPC_CAN1
+#else
+#define MBED_CAN_RX		(p30)
+#define MBED_CAN_TX		(p29)
+#define MBED_CAN_REG	(LPC_CAN2)
 #endif
-unsigned short crc16_ccitt(
-        const unsigned char     block[],
-        unsigned int            blockLength,
-        unsigned short          crc);
 
-#ifdef __cplusplus
-}
-#endif /*__cplusplus*/
+#define MBED_CHECK_TX_BUFFERS (MBED_CAN_REG->SR & 0x4 || MBED_CAN_REG->SR & 0x400 || MBED_CAN_REG->SR & 0x40000)
+#define MBED_CHECK_TX_INTERRUPTS(intStatus) (intStatus & 0x2 || intStatus & 0x200 || intStatus & 0x400)
 
-/** @} */
-#endif
+extern CAN *CANport;
+
+#endif // CO_CAN_H
