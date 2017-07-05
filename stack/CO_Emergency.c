@@ -235,7 +235,7 @@ void CO_EM_process(
             (em->bufReadPtr != em->bufWritePtr || em->bufFull))
     {
         uint32_t preDEF;    /* preDefinedErrorField */
-        
+
         /* add error register */
         em->bufReadPtr[2] = *emPr->errorRegister;
 
@@ -284,7 +284,13 @@ void CO_errorReport(CO_EM_t *em, const uint8_t errorBit, const uint16_t errorCod
     uint8_t bitmask = 1 << (errorBit & 0x7);
     uint8_t *errorStatusBits = 0;
     bool_t sendEmergency = true;
-
+    printf ("CO_errorReport! --> \t");
+    //printf ("em: %d\t",em);
+    printf ("errorBit: %#x\t",errorBit);
+    printf ("index: %d\t",index);
+    printf ("bitmask: %d\t",bitmask);
+    printf ("errorCode: %#x\t",errorCode);
+    printf ("infoCode: %#x\t",infoCode);
     if(em == NULL){
         sendEmergency = false;
     }
@@ -300,7 +306,7 @@ void CO_errorReport(CO_EM_t *em, const uint8_t errorBit, const uint16_t errorCod
             sendEmergency = false;
         }
     }
-
+    printf ("sendEmergency: %d\n",sendEmergency);
     if(sendEmergency){
         /* set error bit */
         if(errorBit){
@@ -346,6 +352,12 @@ void CO_errorReset(CO_EM_t *em, const uint8_t errorBit, const uint32_t infoCode)
     uint8_t *errorStatusBits = 0;
     bool_t sendEmergency = true;
 
+    printf ("CO_errorReset! --> \t");
+    printf ("errorBit: %#x\t",errorBit);
+    printf ("index: %d\t",index);
+    printf ("bitmask: %d\t",bitmask);
+    printf ("infoCode: %#x\t",infoCode);
+
     if(em == NULL){
         sendEmergency = false;
     }
@@ -361,7 +373,7 @@ void CO_errorReset(CO_EM_t *em, const uint8_t errorBit, const uint32_t infoCode)
             sendEmergency = false;
         }
     }
-
+    printf ("sendEmergency: %d\n",sendEmergency);
     if(sendEmergency){
         /* erase error bit */
         *errorStatusBits &= ~bitmask;

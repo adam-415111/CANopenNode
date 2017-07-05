@@ -45,15 +45,29 @@
 
 #include "application.h"
 
+#if defined(TARGET_STM32F303xB)
+  #define CANRD CAN_RD
+  #define CANRT CAN_TD
+#else
+  #define CANRD D15
+  #define CANRT D14
+#endif
+#if defined(TARGET_STM32F334R8) || defined(TARGET_STM32F303K8)
+  #undef CANRD
+  #undef CANRT
+  #define CANRD PA_11
+  #define CANRT PA_12
+#endif
+
+
+//EventQueue queue;//(/*8*EVENTS_EVENT_SIZE*/);
 
 #ifdef USE_EEPROM
     CO_EE_t                     CO_EEO;         /* Eeprom object */
 #endif
-
-#define TMR_TASK_INTERVAL   (1000)          /* Interval of tmrTask thread in microseconds */
-#define INCREMENT_1MS(var)  (var++)         /* Increment 1ms variable in tmrTask */
-volatile uint16_t   CO_timer1ms = 0U;       /* variable increments each millisecond */
-Thread processThread, tmrThread;
+//#define INCREMENT_1MS(var)  (var++)         /* Increment 1ms variable in tmrTask */
+//volatile uint16_t   CO_timer1ms = 0U;       /* variable increments each millisecond */
+//Thread processThread, tmrThread;
 /*******************************************************************************/
 void programStart(mbed::CAN *can){
   /* initialize EEPROM - part 1 */
@@ -69,20 +83,38 @@ void programStart(mbed::CAN *can){
    CO_EE_init_2(&CO_EEO, eeStatus, CO->SDO[0], CO->em);
 #endif
 
-  tmrThread.start(tmrTask_thread);
-  processThread.start(processTask_thread);
+  //queue.call_every(50, tmrTask_thread);
+  //queue.call_every(50, processTask_thread);
+
 }
 
 
 /*******************************************************************************/
 void communicationReset(mbed::CAN *can){
   CO_ReturnError_t err;
+
   if (can == NULL)
-    err = CO_init((int32_t)new mbed::CAN(D15,D14)/* CAN module address */, 1/* NodeID */, 125 /* bit rate */);
-  else
-    err = CO_init((int32_t)can/* CAN module address */, 1/* NodeID */, 125 /* bit rate */);
+    can = new mbed::CAN(CANRD,CANRT);
+    //printf("OD_CANBitRate: %d\r\n", OD_CANBitRate);
+  can->frequency(OD_CANBitRate*1000);
+  can->filter(0x000, 0x700, CANStandard);
+  //printf("handle: %d\r\n",handle);
+  can->filter(0x100, 0x780, CANStandard, 1);
+  //printf("handle: %d\r\n",handle);
+  can->filter(0x580, 0x780, CANStandard, 2);
+  //printf("handle: %d\r\n",handle);
+  can->filter(0x600, 0x700, CANStandard, 3);
+  //printf("handle: %d\r\n",handle);
+  can->filter(0x700, 0x700, CANStandard, 4);
+  //printf("handle: %d\r\n",handle);
+  /*handle = can->filter(0x180, 0x780, CANStandard, handle);
+  handle = can->filter(0x200, 0x7FF, CANStandard, handle);
+  handle = can->filter(0x300, 0x7FF, CANStandard, handle);
+  handle = can->filter(0x400, 0x7FF, CANStandard, handle);
+  handle = can->filter(0x570, 0x780, CANStandard, handle);*/
+  err = CO_init((int32_t)can, OD_CANNodeID, OD_CANBitRate);
+
   if(err != CO_ERROR_NO) {
-      while(1);
       CO_errorReport(CO->em, CO_EM_MEMORY_ALLOCATION_ERROR, CO_EMC_SOFTWARE_INTERNAL, err);
   }
   /* start CAN */
@@ -95,56 +127,62 @@ void programEnd(void){
 
 }
 
+Timer t;
+uint16_t timerNext_ms = 1;
+#define TMR_TASK_INTERVAL   (1000)          /* Interval of tmrTask thread in microseconds */
 /*******************************************************************************/
 void processTask_thread(void) {
   CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
-  uint16_t timer1msPrevious = CO_timer1ms, timerNext_ms = 50;
-  Timer t;
-    while(1) {
-      t.start();
-      uint16_t timer1msCopy, timer1msDiff;
 
-      timer1msCopy = CO_timer1ms;
-      timer1msDiff = timer1msCopy - timer1msPrevious;
-      timer1msPrevious = timer1msCopy;
-      reset = CO_process(CO, timer1msDiff, &timerNext_ms);
-      //printf("timerNext_ms %d\n", timerNext_ms);
-      #ifdef USE_EEPROM
-        CO_EE_process(&CO_EEO);
-      #endif
-      wait_ms(timerNext_ms);
-    }
+  //Timer t;
+  //t.start();
+  //while(1) {
+    //printf("timerNext_ms: %d\n", timerNext_ms);
+    //printf("CO->NMT->operatingState: %d\n", CO->NMT->operatingState);
+    reset = CO_process(CO, t.read_ms(), NULL);
+    //t.reset();
+    #ifdef USE_EEPROM
+      CO_EE_process(&CO_EEO);
+    #endif
+    //wait_ms(timerNext_ms);
+  //}
+  //printf("timerNext_ms after: %d\n", timerNext_ms);
+  //printf("processTask_thread end\n");
+  /*t.stop();
+  printf("processTask_thread: %d milliseconds\n", t.read_ms());*/
+  t.reset();
+  t.start();
+  return;
 }
-
 
 /*******************************************************************************/
 /* timer thread executes in constant intervals ********************************/
 void tmrTask_thread(void) {
-  CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
-  Timer t;
-    while(1) {
-      t.start();
-      wait_ms(1);
-      INCREMENT_1MS(CO_timer1ms);
-
+  //Timer t;
+  //t.start();
+  //CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
+  //uint16_t timerNext_ms = 50;
+    //while(1) {
+      //INCREMENT_1MS(CO_timer1ms);
       if(CO->CANmodule[0]->CANnormal) {
           bool_t syncWas;
-
           /* Process Sync and read inputs */
           syncWas = CO_process_SYNC_RPDO(CO, TMR_TASK_INTERVAL);
-
           /* Further I/O or nonblocking application code may go here. */
-
           /* Write outputs */
           CO_process_TPDO(CO, syncWas, TMR_TASK_INTERVAL);
 
           /* verify timer overflow */
-          if(0) {
-              CO_errorReport(CO->em, CO_EM_ISR_TIMER_OVERFLOW, CO_EMC_SOFTWARE_INTERNAL, 0U);
-          }
+          //if(0) {
+          //    CO_errorReport(CO->em, CO_EM_ISR_TIMER_OVERFLOW, CO_EMC_SOFTWARE_INTERNAL, 0U);
+          //}
         }
-        t.stop();
-        //printf("The time taken was %d seconds\n", t.read_ms());
-        t.reset();
-    }
+        //wait_ms(1);
+        //t.stop();
+        //printf("tmrTask_thread: %d milliseconds\n", t.read_ms());
+        //t.reset();
+    //}
+    //t.stop();
+    //printf("tmrTask_thread: %d milliseconds\n", t.read_ms());
+    //t.reset();
 }

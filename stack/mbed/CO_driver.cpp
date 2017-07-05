@@ -61,13 +61,12 @@ extern "C" {
 mbed::CAN *_can;
 
 #ifdef CO_DEBUG
-DigitalOut read_activity(LED2); // CAN read toggle led
-DigitalOut write_activity(LED1);// CAN write toggle led
+  DigitalOut read_activity(LED2); // CAN read toggle led
+  DigitalOut write_activity(LED1);// CAN write toggle led
 #endif
 
 //Defined as mbed callbacks does not support parameters
 CO_CANmodule_t *_CANmodule;
-
 
 /******************************************************************************/
 void CO_CANsetConfigurationMode(/*mbed::CAN*/int32_t CANbaseAddress){
@@ -86,7 +85,7 @@ void CO_CANsetNormalMode(CO_CANmodule_t *CANmodule){
 /******************************************************************************/
 CO_ReturnError_t CO_CANmodule_init(
         CO_CANmodule_t         *CANmodule,
-        /*mbed::CAN*/int32_t              CANbaseAddress,
+        int32_t                 CANbaseAddress,
         CO_CANrx_t              rxArray[],
         uint16_t                rxSize,
         CO_CANtx_t              txArray[],
@@ -124,12 +123,10 @@ CO_ReturnError_t CO_CANmodule_init(
         txArray[i].bufferFull = false;
     }
 
-    //CANmodule->CANbaseAddress->frequency(CANbitRate);
-    //can = static_cast<mbed::CAN*>(CANmodule->CANbaseAddress);
     _can = (mbed::CAN*)CANmodule->CANbaseAddress;
-    /*CANmodule->CANbaseAddress*/_can->attach(&CO_CANinterrupt_Rx, CAN::RxIrq);
-    /*CANmodule->CANbaseAddress*/_can->attach(&CO_CANinterrupt_busErr, CAN::BeIrq);
-    /*CANmodule->CANbaseAddress*/_can->attach(&CO_CANinterrupt_err, CAN::EwIrq);
+    _can->attach(&CO_CANinterrupt_Rx, CAN::RxIrq);
+    _can->attach(&CO_CANinterrupt_busErr, CAN::BeIrq);
+    _can->attach(&CO_CANinterrupt_err, CAN::EwIrq);
 
     /* Configure CAN module registers */
 
@@ -150,9 +147,7 @@ CO_ReturnError_t CO_CANmodule_init(
         /* Configure mask 0 so, that all messages with standard identifier are accepted */
     }
 
-
     /* configure CAN interrupt registers */
-
 
     return CO_ERROR_NO;
 }
@@ -240,11 +235,10 @@ CO_CANtx_t *CO_CANtxBufferInit(
     return buffer;
 }
 
-
+//Timer t;
 /******************************************************************************/
 CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer){
     CO_ReturnError_t err = CO_ERROR_NO;
-    //printf("SENDING\n");
     /* Verify overflow */
     if(buffer->bufferFull){
         if(!CANmodule->firstCANtxMessage){
@@ -267,12 +261,10 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer){
         canMsg.len = buffer->DLC;
         for(int i = 0; i < canMsg.len; i++) canMsg.data[i] = buffer->data[i];
 
-        /*printf("%d %d %11x %d %2x %2x %2x %2x %2x %2x %2x %2x\t",
-          msg.format,msg.type,msg.id,msg.len,
-          msg.data[0],msg.data[1],msg.data[2],msg.data[3],
-          msg.data[4],msg.data[5],msg.data[6],msg.data[7]);*/
         _can = (mbed::CAN*)CANmodule->CANbaseAddress;
-        if (/*CANmodule->CANbaseAddress*/_can->write(canMsg) == 0) {
+        //_can->write(canMsg);
+        if (_can->write(canMsg) == 0) {
+          printf("NO SEND!");
           err =  CO_ERROR_TX_OVERFLOW; // TODO
         }
         #ifdef CO_DEBUG
@@ -288,11 +280,13 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer){
           printf(" %2x", canMsg.data[7]);
           printf(" Type: %d", canMsg.type);           // 0 = data, 1 = remote
           printf(" Format: %d ]\r\n", canMsg.format);
-          /*printf("%u %u %u %u %u %u %u %u %u %u %u %u\r\n",
+          /*printf("%d %d %d %d %d %d %d %d %d %d %d %d\r\n",
+          //printf("%d %d %d %d %2x %2x %2x %2x %2x %2x %2x %2x\r\n",
+          //printf("%u %u %u %u %u %u %u %u %u %u %u %u\r\n",
             canMsg.format,canMsg.type,canMsg.id,canMsg.len,
             canMsg.data[0],canMsg.data[1],canMsg.data[2],canMsg.data[3],
             canMsg.data[4],canMsg.data[5],canMsg.data[6],canMsg.data[7]);*/
-          write_activity = !write_activity;             //Blink!
+          //write_activity = !write_activity;             //Blink!
         #endif
 
     }
@@ -302,7 +296,10 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer){
         CANmodule->CANtxCount++;
     }
     CO_UNLOCK_CAN_SEND();
-
+    /*t.stop();
+    printf("Sending after %d milliseconds\n", t.read_ms());
+    t.reset();
+    t.start();*/
     return err;
 }
 
@@ -358,10 +355,11 @@ void CO_CANverifyErrors(CO_CANmodule_t *CANmodule){
     rxErrors = /*CANmodule->CANbaseAddress*/_can->rderror();
     txErrors = /*CANmodule->CANbaseAddress*/_can->tderror();
     overflow = rxErrors + rxErrors;
-    //printf("rxErrors %d\n", rxErrors);
-    //printf("txErrors %d\n", txErrors);
-    //printf("overflow %d\n", overflow);*/
-    //printf("em->errorStatusBits[3]: %d\n", em->errorStatusBits[3]);
+    //overflow = rxErrors = rxErrors = 0;
+    /*printf("rxErrors %d\n", rxErrors);
+    printf("txErrors %d\n", txErrors);
+    printf("overflow %d\n", overflow);
+    printf("em->errorStatusBits[3]: %d\n", em->errorStatusBits[3]);*/
 
     err = ((uint32_t)txErrors << 16) | ((uint32_t)rxErrors << 8) | overflow;
     //printf("err %d\n", err);
@@ -527,12 +525,15 @@ void CO_CANinterrupt_Rx()
     printf(" %2x", canMsg.data[6]);
     printf(" %2x", canMsg.data[7]);
     printf(" Type: %d", canMsg.type);           // 0 = data, 1 = remote
-    printf(" Format: %d ]\r\n", canMsg.format);
-    /*printf("%u %u %u %u %u %u %u %u %u %u %u %u\r\n",
+
+    //printf(" Format: %d ]\r\n", canMsg.format);
+    //printf("%u %u %u %u %u %u %u %u %u %u %u %u\r\n",
+    //printf("%d %d %d %d %2x %2x %2x %2x %2x %2x %2x %2x\r\n",
+    /*printf("%d %d %d %d %d %d %d %d %d %d %d %d\r\n",
       canMsg.format,canMsg.type,canMsg.id,canMsg.len,
       canMsg.data[0],canMsg.data[1],canMsg.data[2],canMsg.data[3],
       canMsg.data[4],canMsg.data[5],canMsg.data[6],canMsg.data[7]);*/
-    read_activity = !read_activity;             //Blink!
+    //read_activity = !read_activity;             //Blink!
   #endif
   rcvMsg.ident = canMsg.id;
   rcvMsg.DLC =canMsg.len;
@@ -582,7 +583,7 @@ CO_ReturnError_t CO_mbedCANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer) {
   msg.len = buffer->DLC;
   for(int i = 0; i < msg.len; i++) msg.data[i] = buffer->data[i];
   _can = (mbed::CAN*)CANmodule->CANbaseAddress;
-  if (/*CANmodule->CANbaseAddress*/_can->write(msg) == 1)
+  if (_can->write(msg) == 1)
     return CO_ERROR_NO;
   else
     return CO_ERROR_TX_OVERFLOW; // TODO
@@ -592,7 +593,7 @@ CO_ReturnError_t CO_mbedCANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer) {
 /******************************************************************************/
 void CO_CANinterrupt_busErr()
 {
-    printf("CAN BUSERR\n");
+    //printf("CAN BUSERR\n");
     for (int i=0;i<3;i++) {
       //statusLed = 1;
       wait_ms(300);
@@ -607,7 +608,7 @@ void CO_CANinterrupt_busErr()
 /******************************************************************************/
 void CO_CANinterrupt_err()
 {
-    printf("CAN ERR\n");
+    //printf("CAN ERR\n");
     for (int i=0;i<5;i++) {
       //statusLed = 1;
       wait_ms(50);
@@ -616,4 +617,5 @@ void CO_CANinterrupt_err()
     }
     //statusLed = 0;
     wait_ms(3000);
+    NVIC_SystemReset();
 }
