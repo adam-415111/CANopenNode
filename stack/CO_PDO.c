@@ -911,7 +911,7 @@ int16_t CO_TPDOsend(CO_TPDO_t *TPDO){
     return CO_CANsend(TPDO->CANdevTx, TPDO->CANtxBuff);
 }
 
-//#define RPDO_CALLS_EXTENSION
+#define RPDO_CALLS_EXTENSION
 /******************************************************************************/
 void CO_RPDO_process(CO_RPDO_t *RPDO, bool_t syncWas){
 
