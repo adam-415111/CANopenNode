@@ -48,15 +48,12 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/thread.hpp>
-//#include <easylogging++.h>
-//#include <boost/log/trivial.hpp>
 #include <data/logger.hpp>
 #include <net/if.h>
 #include <sys/epoll.h>
 #include <pthread.h>
 #include <csignal>
 
-#define CO_SDO_BUFFER_SIZE    889
 CO_NMT_reset_cmd_t reset_NMT = CO_RESET_NOT;
 
 #ifdef USE_STORAGE
@@ -68,7 +65,7 @@ CO_ReturnError_t odStorStatus_rom = CO_ERROR_NO, odStorStatus_eeprom = CO_ERROR_
 //CO_EE_t                     CO_EEO;         /* Eeprom object */
 #endif
 
-#define TMR_TASK_INTERVAL   (50000)          /* Interval of tmrTask thread in microseconds */
+#define TMR_TASK_INTERVAL   (1000)          /* Interval of tmrTask thread in microseconds */
 #define INCREMENT_1MS(var)  (var++)         /* Increment 1ms variable in tmrTask */
 volatile uint16_t   CO_timer1ms = 0U;       /* variable increments each millisecond */
 boost::thread *processThread = NULL, *tmrThread = NULL;
@@ -369,7 +366,7 @@ void programEnd(void){
 void processTask_thread(void) {
     //std::cout << "processTask_thread" << std::endl;
     //CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
-    uint16_t timer1msPrevious = CO_timer1ms, timerNext_ms = 50;
+    uint16_t timer1msPrevious = CO_timer1ms, timerNext_ms = 1;
     boost::posix_time::ptime tick;
     boost::posix_time::time_duration diff;
     while(reset_NMT == CO_RESET_NOT) {
@@ -399,7 +396,7 @@ void tmrTask_thread(void) {
     //boost::posix_time::time_duration diff;
     while(reset_NMT == CO_RESET_NOT) {
         //tick = boost::posix_time::microsec_clock::local_time();
-        boost::this_thread::sleep(boost::posix_time::milliseconds(50));
+        boost::this_thread::sleep(boost::posix_time::milliseconds(1));
         INCREMENT_1MS(CO_timer1ms);
 
         /* Lock PDOs and OD */
