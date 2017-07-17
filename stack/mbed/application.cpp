@@ -59,7 +59,7 @@
   #define CANRT PA_12
 #endif
 
-
+CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
 //EventQueue queue;//(/*8*EVENTS_EVENT_SIZE*/);
 
 #ifdef USE_EEPROM
@@ -132,7 +132,7 @@ uint16_t timerNext_ms = 1;
 #define TMR_TASK_INTERVAL   (1000)          /* Interval of tmrTask thread in microseconds */
 /*******************************************************************************/
 void processTask_thread(void) {
-  CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
+  //CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
 
   //Timer t;
   //t.start();
@@ -146,6 +146,13 @@ void processTask_thread(void) {
     #endif
     //wait_ms(timerNext_ms);
   //}
+  if (reset_NMT == CO_RESET_COMM) {
+      NVIC_SystemReset();
+  } else if (reset_NMT == CO_RESET_APP) {
+      NVIC_SystemReset();
+  } else if (reset_NMT == CO_RESET_QUIT) {
+    NVIC_SystemReset();
+  }
   //printf("timerNext_ms after: %d\n", timerNext_ms);
   //printf("processTask_thread end\n");
   /*t.stop();

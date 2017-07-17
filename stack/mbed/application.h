@@ -72,6 +72,8 @@ extern "C"{
 } // extern "C"
 #endif
 
+extern CO_NMT_reset_cmd_t reset;
+
 /**
  * @defgroup CO_application Application interface
  * @ingroup CO_CANopen
