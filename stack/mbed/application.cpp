@@ -146,11 +146,11 @@ void processTask_thread(void) {
     #endif
     //wait_ms(timerNext_ms);
   //}
-  if (reset_NMT == CO_RESET_COMM) {
+  if (reset == CO_RESET_COMM) {
       NVIC_SystemReset();
-  } else if (reset_NMT == CO_RESET_APP) {
+  } else if (reset == CO_RESET_APP) {
       NVIC_SystemReset();
-  } else if (reset_NMT == CO_RESET_QUIT) {
+  } else if (reset == CO_RESET_QUIT) {
     NVIC_SystemReset();
   }
   //printf("timerNext_ms after: %d\n", timerNext_ms);
