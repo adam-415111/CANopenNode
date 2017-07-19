@@ -144,14 +144,28 @@ void processTask_thread(void) {
     #ifdef USE_EEPROM
       CO_EE_process(&CO_EEO);
     #endif
-    //wait_ms(timerNext_ms);
-  //}
+
+  // Check for the different commands
   if (reset == CO_RESET_COMM) {
-      NVIC_SystemReset();
+    //Communication reset should reset the can bus and clean the error but can.reset does not work.
+    //Device software reset also blocks for devices f344
+    CO_errorReset(CO->em, CO_EM_CAN_TX_BUS_OFF, 0);
+    CO_errorReset(CO->em, CO_EM_CAN_TX_BUS_PASSIVE, 0);
+    CO_errorReset(CO->em, CO_EM_CAN_TX_OVERFLOW, 0);
+    CO_errorReset(CO->em, CO_EM_CAN_BUS_WARNING, 0);
+    CO_errorReset(CO->em, CO_EM_CAN_RX_BUS_PASSIVE, 0);
+    CO_errorReset(CO->em, CO_EM_CAN_TX_OVERFLOW, 0);
+    for (unsigned char i = 0; i < CO->em->errorStatusBitsSize; i++)
+      CO->em->errorStatusBits[i] = 0;
+    (*CO->NMT->emPr->errorRegister) = 0U;
+
+    reset == CO_RESET_NOT;
+    CO->NMT->resetCommand = CO_NMT_PRE_OPERATIONAL;
+
   } else if (reset == CO_RESET_APP) {
       NVIC_SystemReset();
   } else if (reset == CO_RESET_QUIT) {
-    NVIC_SystemReset();
+      NVIC_SystemReset();
   }
   //printf("timerNext_ms after: %d\n", timerNext_ms);
   //printf("processTask_thread end\n");

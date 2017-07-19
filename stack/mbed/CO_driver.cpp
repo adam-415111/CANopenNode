@@ -125,8 +125,11 @@ CO_ReturnError_t CO_CANmodule_init(
 
     _can = (mbed::CAN*)CANmodule->CANbaseAddress;
     _can->attach(&CO_CANinterrupt_Rx, CAN::RxIrq);
-    _can->attach(&CO_CANinterrupt_busErr, CAN::BeIrq);
-    _can->attach(&CO_CANinterrupt_err, CAN::EwIrq);
+    //Disable because reset does not work.
+    //_can->attach(&CO_CANinterrupt_busErr, CAN::BeIrq); //CAN::BeIrq for bus error
+    //_can->attach(&CO_CANinterrupt_err, CAN::EwIrq); //Error warning
+    //_can->attach(&CO_CANinterrupt_do, CAN::DoIrq);// CAN::DoIrq for data overrun
+    //_can->attach(&CO_CANinterrupt_pe, CAN::EpIrq);// CAN::EpIrq for error passiv
 
     /* Configure CAN module registers */
 
@@ -242,7 +245,7 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer){
     /* Verify overflow */
     if(buffer->bufferFull){
         if(!CANmodule->firstCANtxMessage){
-            /* don't set error, if bootup message is still on buffers */
+            //don't set error, if bootup message is still on buffers
             CO_errorReport((CO_EM_t*)CANmodule->em, CO_EM_CAN_TX_OVERFLOW, CO_EMC_CAN_OVERRUN, buffer->ident);
         }
         err = CO_ERROR_TX_OVERFLOW;
@@ -265,6 +268,7 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer){
         //_can->write(canMsg);
         if (_can->write(canMsg) == 0) {
           printf("NO SEND!");
+          CO_errorReport((CO_EM_t*)CANmodule->em, CO_EM_CAN_TX_OVERFLOW, CO_EMC_CAN_OVERRUN, buffer->ident);
           err =  CO_ERROR_TX_OVERFLOW; // TODO
         }
         #ifdef CO_DEBUG
@@ -342,6 +346,8 @@ void CO_CANclearPendingSyncPDOs(CO_CANmodule_t *CANmodule){
 
 /******************************************************************************/
 void CO_CANverifyErrors(CO_CANmodule_t *CANmodule){
+  //Disable because can.reset() causes the communication to stop without the possibility binging it back
+  return;
     uint16_t rxErrors, txErrors, overflow;
     CO_EM_t* em = (CO_EM_t*)CANmodule->em;
     uint32_t err;
@@ -355,16 +361,16 @@ void CO_CANverifyErrors(CO_CANmodule_t *CANmodule){
     rxErrors = /*CANmodule->CANbaseAddress*/_can->rderror();
     txErrors = /*CANmodule->CANbaseAddress*/_can->tderror();
     overflow = rxErrors + rxErrors;
-    //overflow = rxErrors = rxErrors = 0;
+    overflow = rxErrors = rxErrors = 0;
     /*printf("rxErrors %d\n", rxErrors);
     printf("txErrors %d\n", txErrors);
-    printf("overflow %d\n", overflow);
-    printf("em->errorStatusBits[3]: %d\n", em->errorStatusBits[3]);*/
+    printf("overflow %d\n", overflow);*/
+    //printf("em->errorStatusBits[3]: %d\n", em->errorStatusBits[3]);
 
     err = ((uint32_t)txErrors << 16) | ((uint32_t)rxErrors << 8) | overflow;
     //printf("err %d\n", err);
-
-    if(CANmodule->errOld != err){
+    CANmodule->errOld = 0;
+    if(CANmodule->errOld != err) {
         CANmodule->errOld = err;
 
         if(txErrors >= 256U){                               /* bus off */
@@ -593,8 +599,8 @@ CO_ReturnError_t CO_mbedCANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer) {
 /******************************************************************************/
 void CO_CANinterrupt_busErr()
 {
-    //printf("CAN BUSERR\n");
-    for (int i=0;i<3;i++) {
+    printf("CAN BUSERR\n");
+    /*for (int i=0;i<3;i++) {
       //statusLed = 1;
       wait_ms(300);
       //statusLed = 0;
@@ -602,14 +608,14 @@ void CO_CANinterrupt_busErr()
     }
     //statusLed = 0;
     wait_ms(3000);
-    NVIC_SystemReset();
+    NVIC_SystemReset();*/
 }
 
 /******************************************************************************/
 void CO_CANinterrupt_err()
 {
-    //printf("CAN ERR\n");
-    for (int i=0;i<5;i++) {
+    printf("CAN ERR\n");
+    /*for (int i=0;i<5;i++) {
       //statusLed = 1;
       wait_ms(50);
       //statusLed = 0;
@@ -617,5 +623,13 @@ void CO_CANinterrupt_err()
     }
     //statusLed = 0;
     wait_ms(3000);
-    NVIC_SystemReset();
+    NVIC_SystemReset();*/
+}
+
+void CO_CANinterrupt_do() {
+  printf("CAN::DoIrq\n");
+}
+
+void CO_CANinterrupt_pe() {
+  printf("CAN::EpIrq\n");
 }
