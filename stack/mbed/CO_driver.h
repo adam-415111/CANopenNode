@@ -472,6 +472,8 @@ void CO_CANinterrupt(CO_CANmodule_t *CANmodule);
 void CO_CANinterrupt_Rx();
 void CO_CANinterrupt_Tx();
 void CO_CANinterrupt_busErr();
+void CO_CANinterrupt_do();
+void CO_CANinterrupt_pe();
 void CO_CANinterrupt_err();
 
 /** @} */
