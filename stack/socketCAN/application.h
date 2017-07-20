@@ -198,13 +198,13 @@ void programEnd(void);
  * @param timer1msDiff Time difference since last call
  */
 //void programAsync(uint16_t timer1msDiff);
-static void processTask_thread(void);
+//static void processTask_thread(void);
 
 
 /**
  * Called cyclically from 1ms timer task.
  */
-static void tmrTask_thread(void);
+//static void tmrTask_thread(void);
 
 static void tmrTask_main(void);
 //void program1ms(void);

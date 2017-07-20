@@ -144,7 +144,7 @@ bool_t taskMain_process(int fd, CO_NMT_reset_cmd_t *reset, uint16_t timer1ms) {
     /* Process mainline. */
     if(wasProcessed) {
         uint16_t timer1msDiff;
-        uint16_t timerNext = 50;
+        uint16_t timerNext = 1;
 
         /* Calculate time difference */
         timer1msDiff = timer1ms - taskMain.tmr1msPrev;
@@ -295,7 +295,8 @@ bool_t CANrx_taskTmr_process(int fd) {
             CO_process_TPDO(CO, syncWas, taskRT.intervalus);
 
             /* Further I/O or nonblocking application code may go here. */
-            if (OD_errorRegister) {
+            //printf ("OD_errorRegister: %d\n", (int)OD_errorRegister);
+            if (OD_errorRegister != 0) {
                 //LOG(DEBUG) << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
                 InterEmergSignal();
             }

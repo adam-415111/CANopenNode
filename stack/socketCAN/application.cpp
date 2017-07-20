@@ -161,6 +161,8 @@ int startCO(std::string CANdevice) {
     if (CO != NULL) {
         DEBUG << "Reseting CO...";
         CO_exit();
+        //for (unsigned char i=0; i < OD)
+        OD_errorRegister = 0;
     }
 
     CANdevice0Index = if_nametoindex(CANdevice.c_str());
@@ -363,6 +365,7 @@ void programEnd(void){
 }
 
 /*******************************************************************************/
+/*
 void processTask_thread(void) {
     //std::cout << "processTask_thread" << std::endl;
     //CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
@@ -380,16 +383,18 @@ void processTask_thread(void) {
         //printf("timerNext_ms %d\n", timerNext_ms);
         /*#ifdef USE_STORAGE
     CO_EE_process(&CO_EEO);
-      #endif*/
+      #endif* /
         boost::this_thread::sleep(boost::posix_time::milliseconds(timerNext_ms));
         diff = boost::posix_time::microsec_clock::local_time() - tick;
         //std::cout << "processTask_thread: " << diff.total_milliseconds() << " milliseconds" << std::endl;
     }
     DEBUG << "processTask_thread done!";
 }
+*/
 
 /*******************************************************************************/
 /* timer thread executes in constant intervals ********************************/
+/*
 void tmrTask_thread(void) {
     //std::cout << "tmrTask_thread" << std::endl;
     //boost::posix_time::ptime tick;
@@ -399,7 +404,7 @@ void tmrTask_thread(void) {
         boost::this_thread::sleep(boost::posix_time::milliseconds(1));
         INCREMENT_1MS(CO_timer1ms);
 
-        /* Lock PDOs and OD */
+        // Lock PDOs and OD
         CO_LOCK_OD();
 
         if(CO->CANmodule[0]->CANnormal) {
@@ -423,7 +428,7 @@ void tmrTask_thread(void) {
                 CO_errorReport(CO->em, CO_EM_ISR_TIMER_OVERFLOW, CO_EMC_SOFTWARE_INTERNAL, 0U);
             }
         }
-        /* Unlock */
+        // Unlock
         CO_UNLOCK_OD();
 
         //diff = boost::posix_time::microsec_clock::local_time() - tick;
@@ -431,13 +436,14 @@ void tmrTask_thread(void) {
     }
     DEBUG << "tmrTask_thread done!";
 }
+*/
 
 void tmrTask_main(void) {
     //std::cout << "tmrTask_thread" << std::endl;
     //boost::posix_time::ptime tick;
     //boost::posix_time::time_duration diff;
     while(reset_NMT == CO_RESET_NOT && CO_endProgram == 0) {
-        /* loop for normal program execution ******************************************/
+        // loop for normal program execution ******************************************
         int ready;
         struct epoll_event ev;
 
@@ -451,20 +457,20 @@ void tmrTask_main(void) {
             uint16_t timer1msDiff;
             static uint16_t tmr1msPrev = 0;
 
-            /* Calculate time difference */
+            // Calculate time difference
             timer1msDiff = CO_timer1ms - tmr1msPrev;
             tmr1msPrev = CO_timer1ms;
 
-            /* code was processed in the above function. Additional code process below */
+            // code was processed in the above function. Additional code process below
 
-            /* Execute optional additional application code */
+            // Execute optional additional application code
             //app_programAsync(timer1msDiff);
 
             //CO_OD_storage_autoSave(&odStorAuto, CO_timer1ms, 60000);
         }
 
         else {
-            /* No file descriptor was processed. */
+            // No file descriptor was processed.
             CO_error(0x11200000L);
         }
     }
