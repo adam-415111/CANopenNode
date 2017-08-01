@@ -267,8 +267,8 @@ CO_ReturnError_t CO_CANsend(CO_CANmodule_t *CANmodule, CO_CANtx_t *buffer){
         _can = (mbed::CAN*)CANmodule->CANbaseAddress;
         //_can->write(canMsg);
         if (_can->write(canMsg) == 0) {
-          printf("NO SEND!");
-          CO_errorReport((CO_EM_t*)CANmodule->em, CO_EM_CAN_TX_OVERFLOW, CO_EMC_CAN_OVERRUN, buffer->ident);
+          //printf("NO SEND!");
+          //CO_errorReport((CO_EM_t*)CANmodule->em, CO_EM_CAN_TX_OVERFLOW, CO_EMC_CAN_OVERRUN, buffer->ident);
           err =  CO_ERROR_TX_OVERFLOW; // TODO
         }
         #ifdef CO_DEBUG
