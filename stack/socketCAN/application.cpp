@@ -315,7 +315,6 @@ int startCO(std::string CANdevice) {
 /*******************************************************************************/
 int communicationStart() {
     CO_ReturnError_t err= CO_ERROR_NO;
-
     err = CO_init( CANdevice0Index, OD_CANNodeID, OD_CANBitRate);
     if(err != CO_ERROR_NO) {
         ERROR << "Failed CO_init: " << err;

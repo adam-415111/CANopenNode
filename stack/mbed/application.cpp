@@ -60,7 +60,6 @@
 #endif
 
 CO_NMT_reset_cmd_t reset = CO_RESET_NOT;
-//EventQueue queue;//(/*8*EVENTS_EVENT_SIZE*/);
 
 #ifdef USE_EEPROM
     CO_EE_t                     CO_EEO;         /* Eeprom object */
