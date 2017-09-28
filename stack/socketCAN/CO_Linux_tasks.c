@@ -114,6 +114,7 @@ void taskMain_close(void) {
     close(taskMain.fdTmr);
 }
 
+#include <stdio.h>
 
 bool_t taskMain_process(int fd, CO_NMT_reset_cmd_t *reset, uint16_t timer1ms) {
     bool_t wasProcessed = true;
@@ -161,10 +162,13 @@ bool_t taskMain_process(int fd, CO_NMT_reset_cmd_t *reset, uint16_t timer1ms) {
         /* CANopen process */
         *reset = CO_process(CO, timer1msDiff, &timerNext);
         //unsigned char er = OD_errorRegister;
-        /*if (OD_errorRegister > 0) {
+        if (OD_errorRegister > 0) {
             //LOG(DEBUG) << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
+            printf ("OD_errorRegister: %d\n", (int)OD_errorRegister);
             InterEmergSignal();
-        }*/
+        }
+         if (*reset != CO_RESET_NOT)
+             return true;
 
         /* Set delay for next sleep. */
         taskMain.tmrSpec.it_value.tv_nsec = (long)(++timerNext) * NSEC_PER_MSEC;
@@ -238,7 +242,6 @@ void CANrx_taskTmr_close(void) {
     close(taskRT.fdTmr);
 }
 
-
 bool_t CANrx_taskTmr_process(int fd) {
     bool_t wasProcessed = true;
 
@@ -295,11 +298,11 @@ bool_t CANrx_taskTmr_process(int fd) {
             CO_process_TPDO(CO, syncWas, taskRT.intervalus);
 
             /* Further I/O or nonblocking application code may go here. */
-            //printf ("OD_errorRegister: %d\n", (int)OD_errorRegister);
-            if (OD_errorRegister != 0) {
+            /*if (OD_errorRegister != 0) {
+                printf ("OD_errorRegister: %d\n", (int)OD_errorRegister);
                 //LOG(DEBUG) << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
                 InterEmergSignal();
-            }
+            }*/
 
         }
 

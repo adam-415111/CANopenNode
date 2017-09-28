@@ -106,11 +106,11 @@ void CO_exit() {
     }
     CO->CANmodule[0]->CANnormal = false;
 
-    if (tmrThread) {
+    /*if (tmrThread) {
         tmrThread->join();
     }
     delete tmrThread;
-    tmrThread = NULL;
+    tmrThread = NULL;*/
 
     if(pthread_join(rt_thread_id, NULL) != 0) {
         CO_errExit("Program end - pthread_join failed");
