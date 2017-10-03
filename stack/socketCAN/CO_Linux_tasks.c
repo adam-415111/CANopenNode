@@ -164,7 +164,7 @@ bool_t taskMain_process(int fd, CO_NMT_reset_cmd_t *reset, uint16_t timer1ms) {
         //unsigned char er = OD_errorRegister;
         if (OD_errorRegister > 0) {
             //LOG(DEBUG) << "Check errors - OD_errorRegister: 0x" << std::hex << (int)OD_errorRegister;
-            printf ("OD_errorRegister: %d\n", (int)OD_errorRegister);
+            //printf ("OD_errorRegister: %d\n", (int)OD_errorRegister);
             InterEmergSignal();
         }
          if (*reset != CO_RESET_NOT)
